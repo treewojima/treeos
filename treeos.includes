@@ -1,0 +1,4 @@
+kernel/include
+libck/include
+kernel/include/kernel
+kernel/arch/i386
