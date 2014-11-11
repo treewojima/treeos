@@ -7,17 +7,19 @@ INCLUDEDIR := $(SYSROOT)/usr/include
 LIBDIR     := $(SYSROOT)/usr/lib
 BOOTDIR    := $(SYSROOT)/boot
 
-CFLAGS       := -c -ggdb3 -std=gnu11 -O0 -Wall -Wextra -ffreestanding \
-                -Ikernel/include -Ilibck/include --sysroot=$(SYSROOT) \
-                -isystem=$(INCLUDEDIR)
-ASFLAGS      := $(CFLAGS) -D__treeos_export_asm
-LDFLAGS      := -ffreestanding -fbuiltin -nostdlib \
-                -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lck
+CFLAGS  := -c -ggdb3 -std=gnu11 -O0 -Wall -Wextra -ffreestanding \
+           -Ikernel/include -Ilibc/include -Ilibk/include \
+           --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR)
+ASFLAGS := $(CFLAGS) -D__treeos_export_asm
+LDFLAGS := -ffreestanding -fbuiltin -nostdlib \
+           -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lc -lk
 
 KERNEL_CSOURCES := $(shell find kernel -type f -name "*.c" -print)
-KERNEL_ASOURCES := $(shell find kernel -name "crt?.S" -prune -o -type f -name "*.S" -print)
-LIBCK_CSOURCES  := $(shell find libck -type f -name "*.c" -print)
-LIBCK_ASOURCES  := $(shell find libck -type f -name "*.S" -print)
+KERNEL_ASOURCES := $(shell find kernel -iname "crt?.S" -prune -o -type f -iname "*.S" -print)
+LIBC_CSOURCES   := $(shell find libc -type f -name "*.c" -print)
+LIBC_ASOURCES   := $(shell find libc -type f -iname "*.S" -print)
+LIBK_CSOURCES   := $(shell find libk -type f -name "*.c" -print)
+LIBK_ASOURCES   := $(shell find libk -type f -iname "*.S" -print)
 
 CRTI_OBJ     := kernel/arch/i386/crti.o
 CRTBEGIN_OBJ := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -print-file-name=crtbegin.o)
@@ -26,11 +28,14 @@ CRTN_OBJ     := kernel/arch/i386/crtn.o
 
 KERNEL_OBJECTS := $(patsubst %.c, %.o, $(KERNEL_CSOURCES)) \
                   $(patsubst %.S, %.o, $(KERNEL_ASOURCES))
-LIBCK_OBJECTS  := $(patsubst %.c, %.o, $(LIBCK_CSOURCES)) \
-                  $(patsubst %.S, %.o, $(LIBCK_ASOURCES))
+LIBC_OBJECTS   := $(patsubst %.c, %.o, $(LIBC_CSOURCES)) \
+                  $(patsubst %.S, %.o, $(LIBC_ASOURCES))
+LIBK_OBJECTS   := $(patsubst %.c, %.o, $(LIBK_CSOURCES)) \
+                  $(patsubst %.S, %.o, $(LIBK_ASOURCES))
 #DEPFILES := $(patsubst %.c, %.dep, $(CSOURCES))
 
-LIBCK_TARGET  := $(BUILDDIR)/libck.a
+LIBC_TARGET   := $(BUILDDIR)/libc.a
+LIBK_TARGET   := $(BUILDDIR)/libk.a
 KERNEL_TARGET := $(BUILDDIR)/kernel.elf
 ISO_TARGET    := $(BUILDDIR)/treeos.iso
 GRUB_CFG_FILE := $(BOOTDIR)/grub/grub.cfg
@@ -38,12 +43,18 @@ GRUB_CFG_FILE := $(BOOTDIR)/grub/grub.cfg
 .PHONY: dumpvars all distclean clean clean-kernel clean-libs clean-sysroot \
         install install-headers install-libs install-kernel install-grub iso
 
-all: $(LIBCK_TARGET) $(KERNEL_TARGET)
+all: $(LIBC_TARGET) $(LIBK_TARGET) $(KERNEL_TARGET)
 
-$(LIBCK_TARGET): $(LIBCK_OBJECTS)
-	$(AR) rcs $@ $(LIBCK_OBJECTS)
+$(LIBC_TARGET): $(LIBC_OBJECTS)
+	mkdir -p $(BUILDDIR)
+	$(AR) rcs $@ $(LIBC_OBJECTS)
+
+$(LIBK_TARGET): $(LIBK_OBJECTS)
+	mkdir -p $(BUILDDIR)
+	$(AR) rcs $@ $(LIBK_OBJECTS)
 
 $(KERNEL_TARGET): $(KERNEL_OBJECTS) $(CRTI_OBJ) $(CRTN_OBJ)
+	mkdir -p $(BUILDDIR)
 	$(CC) -o $(KERNEL_TARGET) $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(KERNEL_OBJECTS) $(CRTEND_OBJ) $(CRTN_OBJ) $(LDFLAGS)
 
 distclean: clean clean-sysroot
@@ -56,8 +67,8 @@ clean-kernel:
 	@find kernel -type f -iname "*~" -exec rm -f {} \;
 
 clean-libs:
-	rm -f $(LIBCK_TARGET) $(LIBCK_OBJECTS)
-	@find libck -type f -iname "*~" -exec rm -f {} \;
+	rm -f $(LIBC_TARGET) $(LIBK_TARGET) $(LIBC_OBJECTS) $(LIBK_OBJECTS)
+	@find libc -type f -iname "*~" -exec rm -f {} \;
 
 clean-sysroot:
 	rm -rf $(SYSROOT)
@@ -75,11 +86,11 @@ install: install-headers install-libs install-kernel
 install-headers:
 	mkdir -p $(INCLUDEDIR)
 	cp -RTv kernel/include $(INCLUDEDIR)
-	cp -RTv libck/include $(INCLUDEDIR)
+	cp -RTv libc/include $(INCLUDEDIR)
 
-install-libs: $(LIBCK_TARGET)
+install-libs: $(LIBC_TARGET) $(LIBK_TARGET)
 	mkdir -p $(LIBDIR)
-	cp $(LIBCK_TARGET) $(LIBDIR)
+	cp $(LIBC_TARGET) $(LIBK_TARGET) $(LIBDIR)
 
 install-kernel: $(KERNEL_TARGET)
 	mkdir -p $(BOOTDIR)

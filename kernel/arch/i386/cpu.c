@@ -1,6 +1,7 @@
 #include <arch/i386/cpu.h>
 #include <arch/i386/interrupt.h>
 #include <kernel/panic.h>
+#include <kernel/syscall.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -56,38 +57,8 @@ extern void irq15(void);
 
 extern void isr48(void);
 
-/* Structure of x86 access byte:
- *  __________________________
- * |  0  |                    |
- * |  1  |  segment type      |
- * |  2  |  (code/data)       |
- * |  3  |                    |
- * |--------------------------|
- * |  4  |  descriptor type   |
- * |--------------------------|
- * |  5  |  descriptor        |
- * |  6  |  privilege levels  |
- * |--------------------------|
- * |  7  |  presence          |
- *  --------------------------
- *
- * Structure of x86 granularity byte:
- *  __________________________
- * |  0  |                    |
- * |  1  |  high limit bits   |
- * |  2  |  (bits 16-19)      |
- * |  3  |                    |
- * |--------------------------|
- * |  4  |  availability      |
- * |--------------------------|
- * |  5  |  always zero       |
- * |--------------------------|
- * |  6  |  operand size      |
- * |--------------------------|
- * |  7  |  granularity       |
- *  -------------------------- */
-
 // Entry in the global descriptor table
+#if 1
 struct gdt_entry
 {
     uint16_t limit_low;   // lower 16 bits of limit
@@ -97,15 +68,80 @@ struct gdt_entry
     uint8_t granularity;  // granularity byte
     uint8_t base_high;    // last 8 bits of base
 } __attribute__((packed));
+#else
+struct gdt_entry
+{
+    uint16_t limit_low;
+    uint32_t base_low : 24;
+
+    // attribute byte
+    uint8_t accessed : 1;
+    uint8_t read_write : 1;             // readable for code, writeable for
+                                        //     data
+    uint8_t conforming_expand_down : 1; // conforming for code, expand down
+                                        //     for data
+    uint8_t code : 1;                   // 1 for code, 0 for data
+    uint8_t always_one : 1;             // should always be 1 for everything
+                                        //     but TSS and LDT
+    uint8_t dpl : 2;                    // privilege level
+    uint8_t present : 1;
+
+    // granularity byte
+    uint8_t limit_high : 4;
+    uint8_t available : 1;
+    uint8_t always_zero : 1; // should always be 0 no matter what
+    uint8_t big : 1;         // 32bit opcodes for code, dword stack for data
+    uint8_t granularity : 1; // 1 to use 4k page addressing, 0 for byte
+                             //     addressing
+
+    uint8_t base_high;
+} __attribute__((packed));
+#endif
 
 // Entry in the interrupt descriptor table
 struct idt_entry
 {
     uint16_t base_low;      // lower 16 bits of address to jump to when the
                             //   interrupt fires
-    uint16_t selector, :8;  // kernel segment selector (and 8 excess zero bits)
+    uint16_t selector, : 8;  // kernel segment selector (and 8 excess zero bits)
     uint8_t flags;
     uint16_t base_high;     // upper 16 bits of address to jump to
+} __attribute__((packed));
+
+// Task selector segment descriptor
+struct tss_entry
+{
+    uint32_t prev_tss;   // previous TSS - if using hardware task switching,
+                         //     this acts as a linked list
+    uint32_t esp0;       // stack pointer to load when changing to kernel mode
+    uint32_t ss0;        // stack segment to load when changing to kernel mode
+
+    // Unless implementing hardware task switching, the rest of this structure
+    // is unused
+    uint32_t esp1;
+    uint32_t ss1;
+    uint32_t esp2;
+    uint32_t ss2;
+    uint32_t cr3;
+    uint32_t eip;
+    uint32_t eflags;
+    uint32_t eax;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t ebx;
+    uint32_t esp;
+    uint32_t ebp;
+    uint32_t esi;
+    uint32_t edi;
+    uint32_t es;
+    uint32_t cs;
+    uint32_t ss;
+    uint32_t ds;
+    uint32_t fs;
+    uint32_t gs;
+    uint32_t ldt;
+    uint16_t trap;
+    uint16_t iomap_base;
 } __attribute__((packed));
 
 // Limit and base structure, used for both GDT and IDT work
@@ -115,8 +151,11 @@ struct limit_and_base
     uint32_t base;
 } __attribute__((packed));
 
-static struct gdt_entry gdt_entries[5];
+#define NUM_GDT_ENTRIES 6
+
+static struct gdt_entry gdt_entries[NUM_GDT_ENTRIES];
 static struct idt_entry idt_entries[INT_NUM_INTERRUPTS];
+static struct tss_entry tss;
 
 static void gdt_set_gate(uint8_t num,
                          uint32_t base,
@@ -131,16 +170,20 @@ static void idt_set_gate(uint8_t num,
 void gdt_init(void)
 {
     struct limit_and_base gdt_ptr;
-    gdt_ptr.limit = sizeof(struct gdt_entry) * 5 - 1;
+    gdt_ptr.limit = sizeof(struct gdt_entry) * NUM_GDT_ENTRIES - 1;
     gdt_ptr.base = (uint32_t)&gdt_entries;
 
-    memset(gdt_entries, 0, sizeof(struct gdt_entry) * 5);
+    memset(gdt_entries, 0, sizeof(struct gdt_entry) * NUM_GDT_ENTRIES);
 
+    // Set up ring segments
     gdt_set_gate(0, 0, 0, 0, 0);                // null segment
     gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF); // code segment
     gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF); // data segment
     gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xCF); // user mode code segment
     gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF); // user mode data segment
+
+    // Set up TSS
+    gdt_set_gate(5, (uint32_t)&tss, sizeof(struct tss_entry), 0x89, 0x40);
 
     load_gdt((uint32_t)&gdt_ptr);
 
@@ -217,6 +260,23 @@ void idt_init(void)
     printf("[cpu] initialized IDT (%d entries)\n", INT_NUM_INTERRUPTS);
 }
 
+void tss_init(void)
+{
+    memset(&tss, 0, sizeof(struct tss_entry));
+
+    // Set the default kernel stack pointer
+    // NOTE: once this is no longer the bootstrap stack, change this!
+    extern uint8_t g_stack_top;
+    tss.esp0 = (uint32_t)&g_stack_top;
+
+    // Set the default kernel stack segment
+    tss.ss0 = 0x10;
+
+    load_tss();
+
+    printf("[cpu] initialized task register\n");
+}
+
 static void gdt_set_gate(uint8_t num,
                          uint32_t base,
                          uint32_t limit,
@@ -244,7 +304,7 @@ static void idt_set_gate(uint8_t num,
 
     idt_entries[num].selector  = selector;
     // Uncomment the OR portion when user-mode functionality is enabled
-    idt_entries[num].flags     = flags; // | 0x60;
+    idt_entries[num].flags     = flags | 0x60;
 }
 
 uint32_t get_eflags(void)
@@ -278,4 +338,10 @@ char *strcat_registers(char *buf, const struct registers *const registers)
                    registers->esp, registers->ss);
 
     return buf;
+}
+
+void test_usermode(void)
+{
+    //syscall(666);
+    while (true);
 }

@@ -1,4 +1,6 @@
 sysroot
 build
 *.o
+.*.swp
+~*
 

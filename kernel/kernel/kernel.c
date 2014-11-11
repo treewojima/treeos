@@ -15,9 +15,10 @@ void kinit(void)
 {
     // Clear the .bss (GRUB is supposed to do this for us, but don't count
     // on it)
-    extern uint8_t g_bss_start, g_bss_end;
-    size_t count = &g_bss_end - &g_bss_start;
-    memset(&g_bss_start, 0, count);
+    // NOTE: the kernel stack is LOCATED in .bss, soooo... yeah, bad idea
+    //extern uint8_t g_bss_start, g_bss_end;
+    //size_t count = &g_bss_end - &g_bss_start;
+    //memset(&g_bss_start, 0, count);
 
     // Initialize our first-stage stack and heap
     //g_initial_stack = initial_stack;
@@ -48,14 +49,14 @@ void kmain(uint32_t boot_magic,
 
     // Load our GDT and initialize interrupts
     gdt_init();
-
-    //int_disable();
     int_init();
-    //int_disable();
+    tss_init();
+
     // Initialize the system timer
     timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
-    int_enable();
 
     // Loop forever to allow interrupts to fire
+    int_enable();
+    jump_usermode();
     while (true);
 }

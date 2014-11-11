@@ -1,8 +1,6 @@
 #ifndef __TREEOS_KERNEL_ARCH_CPU_H__
 #define __TREEOS_KERNEL_ARCH_CPU_H__
 
-#ifndef __treeos_export_asm
-
 #include <stdint.h>
 
 struct registers
@@ -39,7 +37,8 @@ struct registers
 
 void gdt_init(void);
 void idt_init(void);
-void clear_bss(void);
+void tss_init(void);
+//void clear_bss(void);
 
 uint32_t get_eflags(void);
 
@@ -50,7 +49,7 @@ char *strcat_registers(char *buf, const struct registers *const registers);
  */
 extern void load_gdt(uint32_t gdt_ptr);
 extern void load_idt(uint32_t idt_ptr);
-
-#endif
+extern void load_tss(void);
+extern void jump_usermode(void);
 
 #endif
