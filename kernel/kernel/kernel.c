@@ -5,6 +5,7 @@
 #include <kernel/timer.h>
 #include <kernel/tty.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 // Reference to the global initial stack pointer

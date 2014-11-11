@@ -8,4 +8,7 @@
 // Initialize system timer
 void timer_init(uint32_t frequency);
 
+// Get system tick count
+uint32_t timer_getticks(void);
+
 #endif

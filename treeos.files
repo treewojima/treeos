@@ -42,3 +42,5 @@ libck/stdio/sprintf.c
 kernel/include/kernel/timer.h
 kernel/arch/i386/timer.c
 kernel/arch/i386/ioport.c
+kernel/include/kernel/syscall.h
+kernel/arch/i386/syscall.S

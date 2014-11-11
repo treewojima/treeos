@@ -232,6 +232,5 @@ static void irq_int_handler(struct registers *registers)
 
 static void syscall_int_handler(struct registers *registers)
 {
-    printf("\nreceived syscall\n");
-    //halt();
+    printf("\nreceived syscall %d\n", registers->eax);
 }

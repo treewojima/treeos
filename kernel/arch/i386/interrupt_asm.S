@@ -90,7 +90,6 @@ ASM_ISR_IRQ 15, 47
 ASM_ISR_NOERRCODE 48
 
 # Interrupt handler stub function
-.align 8
 .type int_handler_stub, @function
 int_handler_stub:
     # Preserve some registers (as a registers struct)

@@ -3,6 +3,7 @@
 #include <arch/i386/cpu.h>
 #include <arch/i386/interrupt.h>
 #include <arch/i386/ioport.h>
+#include <kernel/syscall.h>
 #include <stdio.h>
 
 static uint32_t ticks;
@@ -46,6 +47,18 @@ void timer_init(uint32_t frequency)
     printf("[timer] initialized system timer to %d Hz\n", frequency);
 }
 
+/* Gets the current system tick count
+ * Parameters:
+ *     none
+ *
+ * Returns:
+ *     system tick count
+ */
+uint32_t timer_getticks(void)
+{
+    return ticks;
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  STATIC FUNCTIONS                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -54,12 +67,4 @@ void timer_init(uint32_t frequency)
 static void timer_callback(struct registers *registers)
 {
     ticks++;
-
-    if (!(ticks % 100))
-    {
-        puts("one second has passed");
-    }
-
-    //kprintf("tick: %d\n", ticks);
-    //proc_switch();
 }
