@@ -1,10 +1,10 @@
 #include <arch/i386/cpu.h>
-#include <arch/i386/interrupt.h>
+#include <kernel/interrupt.h>
 #include <kernel/panic.h>
-#include <kernel/syscall.h>
 #include <stdio.h>
 #include <string.h>
 
+// Interrupt service routines
 extern void isr0(void);
 extern void isr1(void);
 extern void isr2(void);
@@ -38,6 +38,7 @@ extern void isr29(void);
 extern void isr30(void);
 extern void isr31(void);
 
+// IRQ service routines
 extern void irq0(void);
 extern void irq1(void);
 extern void irq2(void);
@@ -55,10 +56,10 @@ extern void irq13(void);
 extern void irq14(void);
 extern void irq15(void);
 
+// Syscall interrupt service routine
 extern void isr48(void);
 
 // Entry in the global descriptor table
-#if 1
 struct gdt_entry
 {
     uint16_t limit_low;   // lower 16 bits of limit
@@ -68,35 +69,6 @@ struct gdt_entry
     uint8_t granularity;  // granularity byte
     uint8_t base_high;    // last 8 bits of base
 } __attribute__((packed));
-#else
-struct gdt_entry
-{
-    uint16_t limit_low;
-    uint32_t base_low : 24;
-
-    // attribute byte
-    uint8_t accessed : 1;
-    uint8_t read_write : 1;             // readable for code, writeable for
-                                        //     data
-    uint8_t conforming_expand_down : 1; // conforming for code, expand down
-                                        //     for data
-    uint8_t code : 1;                   // 1 for code, 0 for data
-    uint8_t always_one : 1;             // should always be 1 for everything
-                                        //     but TSS and LDT
-    uint8_t dpl : 2;                    // privilege level
-    uint8_t present : 1;
-
-    // granularity byte
-    uint8_t limit_high : 4;
-    uint8_t available : 1;
-    uint8_t always_zero : 1; // should always be 0 no matter what
-    uint8_t big : 1;         // 32bit opcodes for code, dword stack for data
-    uint8_t granularity : 1; // 1 to use 4k page addressing, 0 for byte
-                             //     addressing
-
-    uint8_t base_high;
-} __attribute__((packed));
-#endif
 
 // Entry in the interrupt descriptor table
 struct idt_entry
@@ -234,16 +206,16 @@ void idt_init(void)
     idt_set_gate(31, (uint32_t)isr31, 0x08, 0x8E);
 
     // ... and gates 32-47 (our IRQs)
-    idt_set_gate(32, (uint32_t)irq0, 0x08, 0x8E);
-    idt_set_gate(33, (uint32_t)irq1, 0x08, 0x8E);
-    idt_set_gate(34, (uint32_t)irq2, 0x08, 0x8E);
-    idt_set_gate(35, (uint32_t)irq3, 0x08, 0x8E);
-    idt_set_gate(36, (uint32_t)irq4, 0x08, 0x8E);
-    idt_set_gate(37, (uint32_t)irq5, 0x08, 0x8E);
-    idt_set_gate(38, (uint32_t)irq6, 0x08, 0x8E);
-    idt_set_gate(39, (uint32_t)irq7, 0x08, 0x8E);
-    idt_set_gate(40, (uint32_t)irq8, 0x08, 0x8E);
-    idt_set_gate(41, (uint32_t)irq9, 0x08, 0x8E);
+    idt_set_gate(32, (uint32_t)irq0,  0x08, 0x8E);
+    idt_set_gate(33, (uint32_t)irq1,  0x08, 0x8E);
+    idt_set_gate(34, (uint32_t)irq2,  0x08, 0x8E);
+    idt_set_gate(35, (uint32_t)irq3,  0x08, 0x8E);
+    idt_set_gate(36, (uint32_t)irq4,  0x08, 0x8E);
+    idt_set_gate(37, (uint32_t)irq5,  0x08, 0x8E);
+    idt_set_gate(38, (uint32_t)irq6,  0x08, 0x8E);
+    idt_set_gate(39, (uint32_t)irq7,  0x08, 0x8E);
+    idt_set_gate(40, (uint32_t)irq8,  0x08, 0x8E);
+    idt_set_gate(41, (uint32_t)irq9,  0x08, 0x8E);
     idt_set_gate(42, (uint32_t)irq10, 0x08, 0x8E);
     idt_set_gate(43, (uint32_t)irq11, 0x08, 0x8E);
     idt_set_gate(44, (uint32_t)irq12, 0x08, 0x8E);
@@ -272,7 +244,8 @@ void tss_init(void)
     // Set the default kernel stack segment
     tss.ss0 = 0x10;
 
-    load_tss();
+    // Load the TSS using the offset in the GDT (0x28), plus some control bits
+    load_tss(0x2B);
 
     printf("[cpu] initialized task register\n");
 }
@@ -342,6 +315,6 @@ char *strcat_registers(char *buf, const struct registers *const registers)
 
 void test_usermode(void)
 {
-    //syscall(666);
-    while (true);
+    puts("hello, ring 3!");
+    for (;;);
 }

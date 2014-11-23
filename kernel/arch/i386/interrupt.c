@@ -1,5 +1,6 @@
+#include <kernel/interrupt.h>
+
 #include <arch/i386/cpu.h>
-#include <arch/i386/interrupt.h>
 #include <arch/i386/ioport.h>
 #include <kernel/debug.h>
 #include <kernel/panic.h>
@@ -165,7 +166,7 @@ static void unexpected_int_handler(struct registers *registers)
     /* 11 */ "segment not present",
     /* 12 */ "stack-segment fault",
     /* 13 */ "general protection fault",
-    /* 14 */ "page fault"
+    /* 14 */ "page fault",
     /* 15 */ "Intel reserved (this shouldn't EVER be fired)",
     /* 16 */ "x87 FPU floating-point error",
     /* 17 */ "alignment check fault",
@@ -213,7 +214,7 @@ static void irq_int_handler(struct registers *registers)
     {
         char buf[64];
         sprintf(buf, "\nunhandled but active IRQ %d; ignoring", irq);
-        tty_puts_color(buf, TERM_COLOR_WORRY, true);
+        tty_puts_color(buf, TTY_COLOR_WORRY, true);
         //panic_r(buf, registers);
     }
     else

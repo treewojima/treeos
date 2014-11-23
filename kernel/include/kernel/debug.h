@@ -1,6 +1,8 @@
 #ifndef __TREEOS_KERNEL_DEBUG_H__
 #define __TREEOS_KERNEL_DEBUG_H__
 
+#include "defines.h"
+
 #include <kernel/panic.h>
 
 #define KASSERT(cond) \

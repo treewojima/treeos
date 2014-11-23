@@ -3,4 +3,6 @@ build
 *.o
 .*.swp
 ~*
+*.autosave
+bochslog.txt
 

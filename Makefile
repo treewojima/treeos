@@ -9,8 +9,9 @@ BOOTDIR    := $(SYSROOT)/boot
 
 CFLAGS  := -c -ggdb3 -std=gnu11 -O0 -Wall -Wextra -ffreestanding \
            -Ikernel/include -Ilibc/include -Ilibk/include \
-           --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR)
-ASFLAGS := $(CFLAGS) -D__treeos_export_asm
+           --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR) -D__TREEOS_I386 \
+           -DNOT_IN_QT_CREATOR
+ASFLAGS := $(CFLAGS) -D__TREEOS_EXPORT_ASM
 LDFLAGS := -ffreestanding -fbuiltin -nostdlib \
            -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lc -lk
 
@@ -40,10 +41,19 @@ KERNEL_TARGET := $(BUILDDIR)/kernel.elf
 ISO_TARGET    := $(BUILDDIR)/treeos.iso
 GRUB_CFG_FILE := $(BOOTDIR)/grub/grub.cfg
 
-.PHONY: dumpvars all distclean clean clean-kernel clean-libs clean-sysroot \
-        install install-headers install-libs install-kernel install-grub iso
+.PHONY: dumpvars all kernel libs libc libk distclean clean clean-kernel \
+        clean-libs clean-sysroot install install-headers install-libs \
+	install-kernel install-grub iso
 
-all: $(LIBC_TARGET) $(LIBK_TARGET) $(KERNEL_TARGET)
+all: libs kernel
+
+libs: libc libk
+
+libc: $(LIBC_TARGET)
+
+libk: $(LIBK_TARGET)
+
+kernel: $(KERNEL_TARGET)
 
 $(LIBC_TARGET): $(LIBC_OBJECTS)
 	mkdir -p $(BUILDDIR)
@@ -98,14 +108,14 @@ install-kernel: $(KERNEL_TARGET)
 
 install-grub:
 	mkdir -p $(BOOTDIR)/grub
-	echo "set default = 0" > $(GRUB_CFG_FILE)
-	echo "set timeout = 2\n" >> $(GRUB_CFG_FILE)
+	echo "set default=0" > $(GRUB_CFG_FILE)
+	echo "set timeout=1" >> $(GRUB_CFG_FILE)
 	echo "menuentry \"treeos\" {" >> $(GRUB_CFG_FILE)
 	echo "    multiboot /boot/kernel.elf" >> $(GRUB_CFG_FILE)
-	echo "}\n" >> $(GRUB_CFG_FILE)
+	echo "}" >> $(GRUB_CFG_FILE)
 
 $(ISO_TARGET): install install-grub
-	grub-mkrescue -o $(ISO_TARGET) $(SYSROOT)
+	grub2-mkrescue -o $(ISO_TARGET) $(SYSROOT)
 
 iso: $(ISO_TARGET)
 

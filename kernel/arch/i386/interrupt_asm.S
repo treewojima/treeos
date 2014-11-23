@@ -94,17 +94,17 @@ ASM_ISR_NOERRCODE 48
 int_handler_stub:
     # Preserve some registers (as a registers struct)
     pushal
-    pushl   %ds
-    pushl   %es
-    pushl   %fs
-    pushl   %gs
+    pushl %ds
+    pushl %es
+    pushl %fs
+    pushl %gs
 
     # Switch to kernel data segment descriptor
     movw $0x10, %ax
-    movw %ax, %ds
-    movw %ax, %es
-    movw %ax, %fs
-    movw %ax, %gs
+    movw %ax  , %ds
+    movw %ax  , %es
+    movw %ax  , %fs
+    movw %ax  , %gs
 
 #ifdef INT_CALL_HANDLER_DIRECTLY
     # Find the address of the interrupt handler function (in C)

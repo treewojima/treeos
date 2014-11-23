@@ -3,7 +3,6 @@
 #include <arch/i386/cpu.h>
 #include <arch/i386/interrupt.h>
 #include <arch/i386/ioport.h>
-#include <kernel/syscall.h>
 #include <stdio.h>
 
 static uint32_t ticks;

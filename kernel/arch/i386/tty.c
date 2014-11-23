@@ -1,5 +1,6 @@
 #include <arch/i386/ioport.h>
 #include <kernel/debug.h>
+#include <kernel/mm.h>
 #include <kernel/tty.h>
 #include <stdbool.h>
 
@@ -7,7 +8,8 @@
 static const size_t VGA_WIDTH = 80, VGA_HEIGHT = 24;
 
 // Physical address of VGA screen buffer
-static volatile uint16_t *const tty_buf = (volatile uint16_t *const)0xB8000;
+static volatile uint16_t *const tty_buf =
+        (volatile uint16_t *const)(0xB8000);
 
 // Current position
 static size_t tty_row, tty_col;
@@ -49,7 +51,7 @@ void tty_clear(void)
     update_cursor();
 
     // Loop over every "letter" of the screen and "blank" it
-    const uint16_t clear_char = (uint16_t)' ' | (uint16_t)(TERM_COLOR_SCREEN << 8);
+    const uint16_t clear_char = (uint16_t)' ' | (uint16_t)(TTY_COLOR_SCREEN << 8);
     for (size_t y = 0; y < VGA_HEIGHT; y++)
     {
         for (size_t x = 0; x < VGA_WIDTH; x++)
@@ -68,7 +70,7 @@ void tty_clear(void)
  */
 int tty_putchar(int c)
 {
-    return tty_putchar_color(c, TERM_COLOR_SCREEN);
+    return tty_putchar_color(c, TTY_COLOR_SCREEN);
 }
 
 /* Write a char to the VGA console, specifying the fg and bg colors
@@ -125,7 +127,7 @@ int tty_putchar_color(int c, uint8_t color)
  */
 int tty_puts(const char *str, bool newline)
 {
-    return tty_puts_color(str, TERM_COLOR_SCREEN, newline);
+    return tty_puts_color(str, TTY_COLOR_SCREEN, newline);
 }
 
 /* Write a string to the VGA console, specifying the fg and bg colors
@@ -153,7 +155,7 @@ int tty_puts_color(const char *str, uint8_t color, bool newline)
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *  STATIC FUNCTIONS                                                         *
+ *  LOCAL FUNCTIONS                                                          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Update the blinking cursor underscore
@@ -169,7 +171,7 @@ static void update_cursor(void)
 // Scroll the screen by one line
 static void scroll(void)
 {
-    const uint16_t clear_char = (uint16_t)' ' | (uint16_t)(TERM_COLOR_SCREEN << 8);
+    const uint16_t clear_char = (uint16_t)' ' | (uint16_t)(TTY_COLOR_SCREEN << 8);
 
     // Move everything in the screen up one line
     for (size_t line = 0; line < VGA_WIDTH * VGA_HEIGHT; line++)

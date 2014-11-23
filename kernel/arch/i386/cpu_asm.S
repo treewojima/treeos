@@ -10,8 +10,11 @@
 .global load_gdt
 .type load_gdt, @function
 load_gdt:
+    pushl %ebp
+    movl  %esp, %ebp
+
     # Install the new GDT
-    movl 4(%esp), %eax
+    movl 8(%ebp), %eax
     lgdt (%eax)
 
     # Reload segment registers
@@ -23,8 +26,9 @@ load_gdt:
     movw %ax  , %ss
 
     # Longjump to code segment
-    ljmp $0x08, $.here
-.here:
+    ljmp $0x08, $.Lhere
+.Lhere:
+    popl %ebp
     ret
 
 # Load the interrupt descriptor table
@@ -37,14 +41,19 @@ load_gdt:
 .global load_idt
 .type load_idt, @function
 load_idt:
+    pushl %ebp
+    movl  %esp, %ebp
+
     # This code should be fairly self-explanatory
-    movl 4(%esp), %eax
+    movl 8(%ebp), %eax
     lidt (%eax)
+
+    popl %ebp
     ret
 
-# Load the default TSS into the task register
+# Load the specified TSS into the task register
 # Parameters:
-#     none
+#     uint16_t - index/offset of TSS entry in GDT
 #
 # Returns:
 #     void
@@ -52,14 +61,115 @@ load_idt:
 .global load_tss
 .type load_tss, @function
 load_tss:
-    movw $0x2B, %ax
+    pushl %ebp
+    movl  %esp, %ebp
+
+    #movw $0x2B, %ax
+    movw 8(%ebp), %ax
     ltr %ax
+
+    popl %ebp
+    ret
+
+# Read the value of the cr0 register
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_cr0
+.type read_cr0, @function
+read_cr0:
+    pushl %ebp
+    movl  %esp, %ebp
+
+    movl %cr0, %eax
+
+    popl %ebp
+    ret
+
+# Read the value of the cr2 register
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_cr2
+.type read_cr2, @function
+read_cr2:
+    pushl %ebp
+    movl  %esp, %ebp
+
+    movl %cr2, %eax
+
+    popl %ebp
+    ret
+
+# Read the value of the cr3 register
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_cr3
+.type read_cr3, @function
+read_cr3:
+    pushl %ebp
+    movl  %esp, %ebp
+
+    movl %cr3, %eax
+
+    popl %ebp
+    ret
+
+# Write a value to the cr0 register
+# Parameters:
+#     uint32_t - new value
+#
+# Returns:
+#     void
+#
+.global write_cr0
+.type write_cr0, @function
+write_cr0:
+    pushl %ebp
+    movl  %esp, %ebp
+
+    movl 8(%ebp), %eax
+    movl %eax, %cr0
+
+    popl %ebp
+    ret
+
+# Write a value to the cr3 register
+# Parameters:
+#     uint32_t - new value
+#
+# Returns:
+#     void
+#
+.global write_cr3
+.type write_cr3, @function
+write_cr3:
+    pushl %ebp
+    movl  %esp, %ebp
+
+    movl 8(%ebp), %eax
+    movl %eax, %cr3
+
+    popl %ebp
     ret
 
 .global jump_usermode
 .type jump_usermode, @function
 .extern test_usermode
 jump_usermode:
+    #pushl %ebp
+    #movl  %esp, %ebp
+
     movw $0x23, %ax
     movw %ax, %ds
     movw %ax, %es
@@ -72,4 +182,6 @@ jump_usermode:
     pushfl
     pushl $0x1B
     pushl $test_usermode
+
+    #popl %ebp
     iret

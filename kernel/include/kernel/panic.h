@@ -1,6 +1,8 @@
 #ifndef __TREEOS_KERNEL_PANIC_H__
 #define __TREEOS_KERNEL_PANIC_H__
 
+#include "defines.h"
+
 #define MAX_PANIC_BUF 512
 
 struct registers;

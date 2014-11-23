@@ -1,6 +1,15 @@
 #ifndef __TREEOS_KERNEL_ARCH_CPU_H__
 #define __TREEOS_KERNEL_ARCH_CPU_H__
 
+#include "defines.h"
+#ifndef __TREEOS_I386
+#   error included i386-specific header (cpu.h) in non-i386 build
+#endif
+
+#ifdef __TREEOS_EXPORT_ASM
+#   error this include is not meant to be used for assembly source files
+#endif
+
 #include <stdint.h>
 
 struct registers
@@ -49,7 +58,12 @@ char *strcat_registers(char *buf, const struct registers *const registers);
  */
 extern void load_gdt(uint32_t gdt_ptr);
 extern void load_idt(uint32_t idt_ptr);
-extern void load_tss(void);
+extern void load_tss(uint16_t index);
+extern uint32_t read_cr0(void);
+extern uint32_t read_cr2(void);
+extern uint32_t read_cr3(void);
+extern void write_cr0(uint32_t value);
+extern void write_cr3(uint32_t value);
 extern void jump_usermode(void);
 
 #endif

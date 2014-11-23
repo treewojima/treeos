@@ -1,2 +1,8 @@
 kernel/include
 libc/include
+libk/include
+kernel/arch/i386
+kernel/arch/i386/mm
+kernel/include/kernel
+kernel/kernel
+kernel/include/arch/i386

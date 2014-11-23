@@ -1,6 +1,8 @@
 #ifndef __TREEOS_KERNEL_TTY_H__
 #define __TREEOS_KERNEL_TTY_H__
 
+#include "defines.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -8,9 +10,9 @@
 // Common terminal color constants
 enum
 {
-    TERM_COLOR_SCREEN = 0x1F,
-    TERM_COLOR_PANIC  = 0x4F,
-    TERM_COLOR_WORRY  = 0xE8
+    TTY_COLOR_SCREEN = 0x1F,
+    TTY_COLOR_PANIC  = 0x4F,
+    TTY_COLOR_WORRY  = 0xE8
 };
 
 // Terminal driver initialization/clearing

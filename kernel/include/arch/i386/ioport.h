@@ -1,6 +1,15 @@
 #ifndef __TREEOS_KERNEL_ARCH_IOPORT_H__
 #define __TREEOS_KERNEL_ARCH_IOPORT_H__
 
+#include "defines.h"
+#ifndef __TREEOS_I386
+#   error included i386-specific header (ioport.h) in non-i386 build
+#endif
+
+#ifdef __TREEOS_EXPORT_ASM
+#   error this include is not meant to be used for assembly source files
+#endif
+
 #include <stdint.h>
 
 uint8_t ioport_inb(uint16_t port);
