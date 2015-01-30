@@ -28,6 +28,7 @@ load_gdt:
     # Longjump to code segment
     ljmp $0x08, $.Lhere
 .Lhere:
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -48,6 +49,7 @@ load_idt:
     movl 8(%ebp), %eax
     lidt (%eax)
 
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -68,6 +70,7 @@ load_tss:
     movw 8(%ebp), %ax
     ltr %ax
 
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -86,6 +89,7 @@ read_cr0:
 
     movl %cr0, %eax
 
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -104,6 +108,7 @@ read_cr2:
 
     movl %cr2, %eax
 
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -122,6 +127,7 @@ read_cr3:
 
     movl %cr3, %eax
 
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -141,6 +147,7 @@ write_cr0:
     movl 8(%ebp), %eax
     movl %eax, %cr0
 
+    movl %ebp, %esp
     popl %ebp
     ret
 
@@ -160,6 +167,7 @@ write_cr3:
     movl 8(%ebp), %eax
     movl %eax, %cr3
 
+    movl %ebp, %esp
     popl %ebp
     ret
 

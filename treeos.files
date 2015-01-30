@@ -49,7 +49,6 @@ kernel/include/kernel/mm.h
 kernel/include/kernel/interrupt.h
 kernel/include/defines.h
 kernel/arch/i386/reboot.c
-kernel/arch/i386/mm/page.c
 kernel/arch/i386/boot.S
 kernel/arch/i386/cpu.c
 kernel/arch/i386/cpu_asm.S
@@ -73,3 +72,9 @@ kernel/arch/i386/serio.c
 kernel/arch/i386/mm/heap.c
 kernel/arch/i386/linker.ld.old
 kernel/arch/i386/boot.S.old
+kernel/kernel/multiboot.c
+kernel/arch/i386/mm/frame.c
+kernel/kernel/liballoc.c
+kernel/include/kernel/liballoc.h
+kernel/kernel/liballoc_hooks.c
+kernel/arch/i386/mm/mm_asm.S

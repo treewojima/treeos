@@ -3,6 +3,8 @@
 #include <arch/i386/cpu.h>
 #include <kernel/debug.h>
 #include <kernel/interrupt.h>
+#include <kernel/multiboot.h>
+#include <kernel/reboot.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,55 +28,131 @@ static void page_fault_int_handler(struct registers *registers);
  * Returns:
  *     void
  */
-#if 0
 void mm_init(void)
 {
-    // Register the page fault interrupt handler
-    int_register_handler(14, page_fault_int_handler);
+    // Make sure we can use GRUB's memory information
+    extern const struct multiboot_info g_multiboot_info;
+    const struct multiboot_info *const mbi = &g_multiboot_info;
+    PANIC_IF(!((mbi->flags & MB_FLAG_MEM)),
+             "Multiboot header does not include memory size information");
+    PANIC_IF(!((mbi->flags & MB_FLAG_MMAP)),
+             "Multiboot header does not include memory map information");
 
-    // Import the existing page directory
-    memset(&g_kernel_page_dir, 0, sizeof(g_kernel_page_dir));
-    extern uint8_t g_asm_kernel_page_dir;
-    g_kernel_page_dir.tables_phys = &g_asm_kernel_page_dir;
+    printf("mem_lower = %d KiB\n", mbi->mem_lower);
+    printf("mem_upper = %d KiB\n", mbi->mem_upper);
+    printf("mem_total = %d KiB\n", mbi->mem_lower + mbi->mem_upper);
 
-    // Flag existing or reserved pages as in-use
-    mm_alloc_reserved_pages();
+    // Initialize physical memory map
+    mm_init_frame_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
 
-    //printf("kernel page dir = %p\n", kernel_page_dir.tables_phys);
-    //printf("kernel page table (low) = %p\n", kernel_page_table);
-    //printf("kernel page table (high) = %p\n", kernel_page_table_low);
-}
-#endif
-
-void mm_init(void)
-{
-    // Map the first 4MB of memory in the page table (expand this later)
-    struct page_table_entry pte;
-    uint32_t address = 0;
-    for (int i = 0; i < 1024; i++, address += 4096)
+    // Loop through the memory map that GRUB provides from the BIOS
+    struct multiboot_memory_map *mmap =
+            (struct multiboot_memory_map *)mbi->mmap_addr;
+    while ((uint32_t)mmap < mbi->mmap_addr + mbi->mmap_length)
     {
-        memset(&pte, 0, sizeof(pte));
-        pte.present = 1;
-        pte.rw = 1;
-        pte.address = address >> 12;
+        printf("memory region from %p to %p is %s\n",
+               mmap->base_addr_low,
+               mmap->base_addr_low + mmap->length_low,
+               mmap->type == 1 ? "available" : "reserved");
 
-        g_kernel_page_table[i] = pte;
+        // Only consider the region if it's marked as available
+        if (mmap->type == 1)
+        {
+            mm_init_region(mmap->base_addr_low, mmap->length_low);
+        }
+
+        mmap = (struct multiboot_memory_map *)
+                ((uint32_t)mmap + mmap->size + sizeof(mmap->size));
     }
 
-    // Since we're only using 4MB, we only need to mark the first entry of the
-    // page directory as "present"
+    // Make sure the kernel's region of memory isn't marked as free
+    // NOTE: Right now this just blindly allocates the first 4 MiB of memory
+    mm_deinit_region(0, 4096 * 1024);
+
+    struct page_table_entry *pte = g_kernel_page_table;
+    memset(pte, 0, sizeof(*pte) * 1024);
+
+    // Identity map the first 4 MiB - 4 KiB of memory in the page table for kernel use
+    // NOTE: The last 4 KiB is reserved for temporary page frame mapping
+    // NOTE: The first page is reserved for NULL
+    for (int i = 1; i < 1023; i++)
+    {
+        pte[i].present = 1;
+        pte[i].rw = 1;
+        pte[i].address = (i * PAGE_SIZE) >> 12;
+    }
     g_kernel_page_dir[0].present = 1;
     g_kernel_page_dir[0].rw = 1;
-    g_kernel_page_dir[0].address = (uint32_t)g_kernel_page_table >> 12;
+    g_kernel_page_dir[0].address = (uint32_t)pte >> 12;
+
+    int pages = 0;
+
+    // Map the rest of available memory
+    for (int i = 1; i < 1023; i++)
+    {
+        pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
+
+        for (int j = 0; j < 1024; j++, pages++)
+        {
+            if (mm_alloc_frame(&pte[j]) == NULL)
+                break;
+            pte[j].present = 1;
+            pte[j].rw = 1;
+            pte[j].user = 1;
+        }
+
+        g_kernel_page_dir[i].present = 1;
+        g_kernel_page_dir[i].rw = 1;
+        g_kernel_page_dir[i].user = 1;
+        g_kernel_page_dir[i].address = (uint32_t)pte >> 12;
+    }
+
+    // Map the last entry of the PDE to itself
+    g_kernel_page_dir[1023].present = 1;
+    g_kernel_page_dir[1023].rw = 1;
+    g_kernel_page_dir[1023].address = (uint32_t)g_kernel_page_dir >> 12;
 
     // Enable paging
-    write_cr3((uint32_t)g_kernel_page_dir);
+    write_cr3((uint32_t)&g_kernel_page_dir);
     write_cr0(read_cr0() | 0x80000000);
 
     // Set up our page fault handler
     int_register_handler(14, page_fault_int_handler);
 
-    printf("[mm] paging enabled\n");
+    printf("[mm] paging enabled (%d pages/%u KiB free)\n", pages, pages * PAGE_SIZE / 1024);
+}
+
+void *mm_get_physaddr(void *virtualaddr)
+{
+    uint32_t pgdir_index = (uint32_t)virtualaddr >> 22;
+    uint32_t pgtbl_index = (uint32_t)virtualaddr >> 12 & 0x03FF;
+
+    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
+    if (!pde[pgdir_index].present)
+    {
+        char msg[128];
+        sprintf(msg,
+                "virtual address %x references invalid page directory entry %u",
+                (uint32_t)virtualaddr,
+                pgdir_index);
+        panic(msg);
+    }
+
+    struct page_table_entry *pte =
+            ((struct page_table_entry *)0xFFC00000) + (0x400 * pgdir_index);
+    if (!pte[pgtbl_index].present)
+    {
+        char msg[128];
+        sprintf(msg,
+                "virtual address %x references invalid page table entry %u in page directory %u",
+                (uint32_t)virtualaddr,
+                pgtbl_index,
+                pgdir_index);
+        panic(msg);
+    }
+
+    uint32_t *pte_int = (uint32_t *)&pte[pgtbl_index];
+    return (void *)((*pte_int & ~0xFFF) + ((uint32_t)virtualaddr & 0xFFF));
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

@@ -6,7 +6,8 @@
 #include <stdint.h>
 
 #define MB_BOOT_MAGIC  0x2BADB002
-#define MB_FLAG_MOD    (1 << 2)
+#define MB_FLAG_MEM    (1 << 0)
+#define MB_FLAG_MOD    (1 << 3)
 #define MB_FLAG_MMAP   (1 << 6)
 
 struct multiboot_aout

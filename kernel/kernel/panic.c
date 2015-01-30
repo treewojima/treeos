@@ -15,7 +15,7 @@ void __panic(const char *file, int line, const char *msg)
     memset(msg_buf, 0, MAX_PANIC_BUF);
     sprintf(msg_buf, "panic (%s:%d): %s", file, line, msg);
     serio_puts(SERIO_COM1, msg_buf, true);
-    tty_puts_color(msg_buf, TTY_COLOR_PANIC, false);
+    tty_puts_color(msg_buf, TTY_COLOR_PANIC, true);
     halt();
 }
 
@@ -24,7 +24,7 @@ void __worry(const char *file, int line, const char *msg)
     memset(msg_buf, 0, MAX_PANIC_BUF);
     sprintf(msg_buf, "worry (%s:%d): %s\n", file, line, msg);
     serio_puts(SERIO_COM1, msg_buf, true);
-    tty_puts_color(msg_buf, TTY_COLOR_WORRY, false);
+    tty_puts_color(msg_buf, TTY_COLOR_WORRY, true);
 }
 
 __attribute__((__noreturn__))
@@ -37,6 +37,6 @@ void __panic_r(const char *file,
     sprintf(msg_buf, "panic (%s:%d): %s\n", file, line, msg);
     strcat_registers(msg_buf, registers);
     serio_puts(SERIO_COM1, msg_buf, true);
-    tty_puts_color(msg_buf, TTY_COLOR_PANIC, false);
+    tty_puts_color(msg_buf, TTY_COLOR_PANIC, true);
     halt();
 }

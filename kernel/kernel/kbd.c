@@ -3,7 +3,8 @@
 #include <kernel/interrupt.h>
 #include <stdio.h>
 
-static void kbd_int_handler(struct registers *registers);
+//static void kbd_int_handler(struct registers *registers);
+static void kbd_int_handler();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  PUBLIC FUNCTIONS                                                         *
@@ -26,7 +27,7 @@ void kbd_init(void)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Keyboard IRQ callback
-static void kbd_int_handler(struct registers *registers)
+static void kbd_int_handler()
 {
     uint8_t scancode = kbd_read_scancode();
     if (!(scancode & 0x80))

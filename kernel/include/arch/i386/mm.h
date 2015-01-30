@@ -6,9 +6,9 @@
 #   error included i386-specific header (mm.h) in non-i386 build
 #endif
 
-#ifdef __TREEOS_EXPORT_ASM
-#   error this include is not meant to be used for assembly source files
-#endif
+#define PAGE_SIZE 4096
+
+#ifndef __TREEOS_EXPORT_ASM
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -29,19 +29,29 @@ struct page_dir_entry
    uint32_t address        : 20; // aligned address of page table
 } __attribute__((packed));
 
-struct page_table_entry
+struct page_table_entry // aka a page
 {
     uint32_t present        : 1;  // present
     uint32_t rw             : 1;  // read-only if clear, read/write if set
-    uint32_t user           : 1;  // supervisor-only if clear
-    uint32_t writethrough   : 1;  // write-back if clear, write-through if set
-    uint32_t cache_disabled : 1;  // instructs to "do not cache" if set
+    uint32_t user           : 1,  // supervisor-only if clear
+                            : 2;  // hidden reserved fields
     uint32_t accessed       : 1;  // set if the page has been accessed/written to
     uint32_t dirty          : 1,  // set if the page has been written to
-                            : 1;  // hidden always-zero field
-    uint32_t global         : 1;  // prevents TLB from updating the cache if set
+                            : 2;  // hidden reserved fields
     uint32_t os_flags       : 3;  // flags that can be used by the OS
     uint32_t address        : 20; // physical address of page
 } __attribute__((packed));
+
+struct page_table_entry *mm_alloc_frame(struct page_table_entry *frame);
+void mm_free_frame(struct page_table_entry *frame);
+
+uint32_t mm_init_frame_bitmap(uint32_t mem_size);
+void mm_init_region(uint32_t base, uint32_t size);
+void mm_deinit_region(uint32_t base, uint32_t size);
+
+extern void mm_flush_tlb(uint32_t virtualaddr);
+extern void mm_flush_tlb_full(void);
+
+#endif
 
 #endif

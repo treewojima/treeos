@@ -1,13 +1,14 @@
 #include <kernel/timer.h>
 
 #include <arch/i386/cpu.h>
-#include <arch/i386/interrupt.h>
 #include <arch/i386/ioport.h>
+#include <kernel/interrupt.h>
 #include <stdio.h>
 
 static uint32_t ticks;
 
-static void timer_callback(struct registers *registers);
+//static void timer_callback(struct registers *registers);
+static void timer_callback();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  PUBLIC FUNCTIONS                                                         *
@@ -63,7 +64,7 @@ uint32_t timer_getticks(void)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Called everytime IRQ0 is fired
-static void timer_callback(struct registers *registers)
+static void timer_callback()
 {
     ticks++;
 }

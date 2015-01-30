@@ -7,8 +7,8 @@ INCLUDEDIR := $(SYSROOT)/usr/include
 LIBDIR     := $(SYSROOT)/usr/lib
 BOOTDIR    := $(SYSROOT)/boot
 
-CFLAGS  := -c -ggdb3 -std=gnu11 -O0 -Wall -Wextra -ffreestanding \
-           -Ikernel/include -Ilibc/include -Ilibk/include \
+CFLAGS  := -c -pipe -ggdb3 -std=gnu11 -O0 -Wall -Wextra -Werror \
+           -ffreestanding -Ikernel/include -Ilibc/include -Ilibk/include \
            --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR) -D__TREEOS_I386 \
            -DNOT_IN_QT_CREATOR
 ASFLAGS := $(CFLAGS) -D__TREEOS_EXPORT_ASM
