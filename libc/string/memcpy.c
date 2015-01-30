@@ -1,9 +1,10 @@
+#include <stdint.h>
 #include <string.h>
 
 void *memcpy(void *dest, const void *src, size_t num)
 {
-    const unsigned char *srcc = (const unsigned char *)src;
-    unsigned char *destc = (unsigned char *)dest;
+    const uint8_t *srcc = (const unsigned char *)src;
+    uint8_t *destc = (unsigned char *)dest;
 
     for (; num > 0; num--)
     {

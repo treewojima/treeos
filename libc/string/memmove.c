@@ -1,9 +1,10 @@
+#include <stdint.h>
 #include <string.h>
 
 void *memmove(void *dest, const void *src, size_t size)
 {
-    unsigned char *destc = (unsigned char *)dest;
-    const unsigned char *srcc = (const unsigned char *)src;
+    uint8_t *destc = (uint8_t *)dest;
+    const uint8_t *srcc = (const uint8_t *)src;
 
     if (destc < srcc)
     {
