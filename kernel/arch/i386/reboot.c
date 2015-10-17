@@ -1,3 +1,4 @@
+#include <kernel/interrupt.h>
 #include <kernel/reboot.h>
 #include <kernel/tty.h>
 
@@ -10,9 +11,8 @@ void reboot(void)
 void halt(void)
 {
     tty_puts_color("halted", TTY_COLOR_PANIC, false);
-    //int_disable();
-    __asm__ __volatile__("cli");
+    int_disable();
     __asm__ __volatile__("hlt");
-    while (1) ;
+    for (;;) ;
     __builtin_unreachable();
 }

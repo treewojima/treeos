@@ -26,7 +26,7 @@ struct page_dir_entry
    uint32_t page_size      : 1,  // 4 KiB if clear, 4 MiB if set
                            : 1;  // hidden unused field
    uint32_t os_flags       : 3;  // flags that can be used by the OS
-   uint32_t address        : 20; // aligned address of page table
+   uint32_t address        : 20; // aligned address of page table, right-shifted by 12
 } __attribute__((packed));
 
 struct page_table_entry // aka a page
@@ -39,7 +39,7 @@ struct page_table_entry // aka a page
     uint32_t dirty          : 1,  // set if the page has been written to
                             : 2;  // hidden reserved fields
     uint32_t os_flags       : 3;  // flags that can be used by the OS
-    uint32_t address        : 20; // physical address of page
+    uint32_t address        : 20; // physical address of page, right-shifted by 12
 } __attribute__((packed));
 
 struct page_table_entry *mm_alloc_frame(struct page_table_entry *frame);

@@ -6,4 +6,10 @@
 #   define __TREEOS_I386
 #endif
 
+#ifndef NULL
+#   define NULL ((void *)0)
+#endif
+
+//#define KBD_DEBUG_KEYPRESSES
+
 #endif

@@ -11,13 +11,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#if 0
-static void map_page(uint32_t physaddr,
-                     uint32_t virtualaddr,
-                     bool rw,
-                     bool user);
-#endif
-
 /* Kernel C-code entry point
  * Parameters:
  *     boot_magic    - magic number passed by a Multiboot-compatible bootloader
@@ -68,7 +61,7 @@ void kmain(void)
 
     // Initialize paging and the proper kernel heap
     mm_init();
-    //mm_init_kernel_heap();
+    mm_init_kernel_heap();
 
     // Initialize the system timer and keyboard driver
     timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
@@ -76,56 +69,19 @@ void kmain(void)
 
     int_enable();
 
-    while (true);
-}
-
 #if 0
-void map_page(uint32_t physaddr,
-              uint32_t virtualaddr,
-              bool rw,
-              bool user)
-{
-    PANIC_IF((physaddr & 0xFFF) != 0, "physical address is not page-aligned");
-    PANIC_IF((virtualaddr & 0xFFF) != 0, "virtual address is not page-aligned");
+    struct page_table_entry pte = { 0 };
+    PANIC_IF(!mm_alloc_frame(&pte), "out of memory");
 
-    uint32_t pgdir_index = (uint32_t)virtualaddr >> 22;
-    uint32_t pgtbl_index = (uint32_t)virtualaddr >> 12 & 0x03FF;
+    uint32_t real_physaddr = pte.address << 12;
+    map_page(real_physaddr, (32 * 1024 * 1024), true, true);
 
-    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
-    if (!pde[pgdir_index].present)
-    {
-        // Create a new page directory entry
-        struct page_table_entry *new_pte = mm_placement_alloc(sizeof(*new_pte) * 1024, true);
-        pde[pgdir_index].present = 1;
-        pde[pgdir_index].rw = 1;
-        pde[pgdir_index].user = 1;
-
-        // Make sure the mapping is to the PTE's PHYSICAL address, not virtual
-        uint32_t new_pte_physaddr = (uint32_t)mm_get_physaddr(new_pte);
-        pde[pgdir_index].address = (uint32_t)new_pte_physaddr >> 12;
-    }
-
-    struct page_table_entry *pte =
-            ((struct page_table_entry *)0xFFC00000) + (0x400 * pgdir_index);
-    // TODO: this is debug-only, so fix this later
-    if (pte[pgtbl_index].present)
-    {
-        char buffer[128];
-        sprintf(buffer,
-                "page table entry already  present for virtual address %x (mapped to physical address %x)",
-                virtualaddr,
-                physaddr);
-        panic(buffer);
-    }
-    else
-    {
-        pte[pgtbl_index].present = 1;
-        pte[pgtbl_index].rw = rw;
-        pte[pgtbl_index].user = user;
-        pte[pgtbl_index].address = physaddr >> 12;
-    }
-
-    // Update the TLB
-    mm_flush_tlb(virtualaddr);
-}
+    int *test = (int *)(32 * 1024 * 1024);
+    *test = 69;
+    printf("*test      = %d\n", *test);
+    printf("test_vaddr = %p\n", test);
+    printf("test_paddr = %p\n", mm_get_physaddr(test));
 #endif
+
+    for (;;) ;
+}

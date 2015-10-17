@@ -3,7 +3,7 @@
 #include <kernel/interrupt.h>
 #include <stdio.h>
 
-//static void kbd_int_handler(struct registers *registers);
+// Empty parameter list is intentional to avoid tripping a warning/error
 static void kbd_int_handler();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -29,6 +29,7 @@ void kbd_init(void)
 // Keyboard IRQ callback
 static void kbd_int_handler()
 {
+#ifdef KBD_DEBUG_KEYPRESSES
     uint8_t scancode = kbd_read_scancode();
     if (!(scancode & 0x80))
     {
@@ -36,4 +37,5 @@ static void kbd_int_handler()
         putchar(scancode_to_ascii[scancode]);
         putchar('\n');
     }
+#endif
 }

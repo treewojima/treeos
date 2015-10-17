@@ -15,7 +15,7 @@ void mm_init(void);
 void mm_init_placement_heap(void);
 void mm_init_kernel_heap(void);
 
-void *mm_alloc_page(void);
+//void *mm_alloc_page(void);
 //void *mm_alloc_pages(uint32_t num_pages);
 
 void *mm_get_physaddr(void *virtualaddr);

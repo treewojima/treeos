@@ -1,5 +1,6 @@
 CC       := /opt/cross-i686/bin/i686-elf-gcc
 AR       := /opt/cross-i686/bin/i686-elf-ar
+LD       := /opt/cross-i686/bin/i686-elf-ld
 
 BUILDDIR   := $(PWD)/build
 SYSROOT    := $(PWD)/sysroot
@@ -12,7 +13,7 @@ CFLAGS  := -c -pipe -ggdb3 -std=gnu11 -O0 -Wall -Wextra -Werror \
            --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR) -D__TREEOS_I386 \
            -DNOT_IN_QT_CREATOR
 ASFLAGS := $(CFLAGS) -D__TREEOS_EXPORT_ASM
-LDFLAGS := -ffreestanding -fbuiltin -nostdlib \
+LDFLAGS := -ffreestanding -fbuiltin -fno-common -nostdlib \
            -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lc -lk
 
 KERNEL_CSOURCES := $(shell find kernel -type f -name "*.c" -print)

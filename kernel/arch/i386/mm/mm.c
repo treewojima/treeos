@@ -72,19 +72,24 @@ void mm_init(void)
     struct page_table_entry *pte = g_kernel_page_table;
     memset(pte, 0, sizeof(*pte) * 1024);
 
-    // Identity map the first 4 MiB - 4 KiB of memory in the page table for kernel use
-    // NOTE: The last 4 KiB is reserved for temporary page frame mapping
-    // NOTE: The first page is reserved for NULL
-    for (int i = 1; i < 1023; i++)
+    // Map the first 4 MiB of physical memory into the higher half (3 GiB)
+    for (int i = 0; i < 1024; i++)
     {
         pte[i].present = 1;
         pte[i].rw = 1;
         pte[i].address = (i * PAGE_SIZE) >> 12;
     }
-    g_kernel_page_dir[0].present = 1;
-    g_kernel_page_dir[0].rw = 1;
-    g_kernel_page_dir[0].address = (uint32_t)pte >> 12;
 
+    extern uint8_t KERNEL_PHYS_ADDR;
+    extern uint8_t KERNEL_VIRT_OFFSET;
+    uint32_t higher_half_page =
+            ((uint32_t)&KERNEL_PHYS_ADDR + (uint32_t)&KERNEL_VIRT_OFFSET) >> 22;
+
+    g_kernel_page_dir[higher_half_page].present = 1;
+    g_kernel_page_dir[higher_half_page].rw = 1;
+    g_kernel_page_dir[higher_half_page].address = (uint32_t)pte >> 12;
+
+#if 0
     int pages = 0;
 
     // Map the rest of available memory
@@ -106,20 +111,25 @@ void mm_init(void)
         g_kernel_page_dir[i].user = 1;
         g_kernel_page_dir[i].address = (uint32_t)pte >> 12;
     }
+#endif
 
     // Map the last entry of the PDE to itself
     g_kernel_page_dir[1023].present = 1;
     g_kernel_page_dir[1023].rw = 1;
-    g_kernel_page_dir[1023].address = (uint32_t)g_kernel_page_dir >> 12;
+    g_kernel_page_dir[1023].address =
+            (uint32_t)mm_get_physaddr(g_kernel_page_dir) >> 12;
 
     // Enable paging
-    write_cr3((uint32_t)&g_kernel_page_dir);
+    //mm_flush_tlb_full();
+    //write_cr3((uint32_t)&g_kernel_page_dir);
+    write_cr3((uint32_t)mm_get_physaddr(g_kernel_page_dir));
     write_cr0(read_cr0() | 0x80000000);
 
     // Set up our page fault handler
     int_register_handler(14, page_fault_int_handler);
 
-    printf("[mm] paging enabled (%d pages/%u KiB free)\n", pages, pages * PAGE_SIZE / 1024);
+    //printf("[mm] paging enabled (%d pages/%u KiB free)\n", pages, pages * PAGE_SIZE / 1024);
+    printf("[mm] paging enabled\n");
 }
 
 void *mm_get_physaddr(void *virtualaddr)
