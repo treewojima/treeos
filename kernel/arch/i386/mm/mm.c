@@ -10,9 +10,11 @@
 #include <string.h>
 
 extern uint32_t g_placement_address;
+extern uint8_t KERNEL_BOOT_VMA, KERNEL_HIGH_VMA;
 
-extern struct page_dir_entry g_kernel_page_dir[1024];
-extern struct page_table_entry g_kernel_page_table[1024];
+//extern struct page_dir_entry g_kernel_page_dir;//[1024];
+//extern struct page_table_entry g_kernel_page_table;//[1024];
+//extern struct page_table_entry g_kernel_low_page_table;//[1024];
 
 // Page fault handler
 static void page_fault_int_handler(struct registers *registers);
@@ -49,7 +51,7 @@ void mm_init(void)
     struct multiboot_memory_map *mmap =
             (struct multiboot_memory_map *)mbi->mmap_addr;
     while ((uint32_t)mmap < mbi->mmap_addr + mbi->mmap_length)
-    {
+    {        
         printf("memory region from %p to %p is %s\n",
                mmap->base_addr_low,
                mmap->base_addr_low + mmap->length_low,
@@ -69,10 +71,9 @@ void mm_init(void)
     // NOTE: Right now this just blindly allocates the first 4 MiB of memory
     mm_deinit_region(0, 4096 * 1024);
 
-    struct page_table_entry *pte = g_kernel_page_table;
+    // Identity map the first 4 MiB of physical memory
+    struct page_table_entry *pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
     memset(pte, 0, sizeof(*pte) * 1024);
-
-    // Map the first 4 MiB of physical memory into the higher half (3 GiB)
     for (int i = 0; i < 1024; i++)
     {
         pte[i].present = 1;
@@ -80,19 +81,24 @@ void mm_init(void)
         pte[i].address = (i * PAGE_SIZE) >> 12;
     }
 
-    extern uint8_t KERNEL_PHYS_ADDR;
-    extern uint8_t KERNEL_VIRT_OFFSET;
+    // Create and initialize a new page directory
+    struct page_dir_entry *pde = mm_placement_alloc(sizeof(*pde) * 1024, true);
+    memset(pde, 0, sizeof(*pde) * 1024);
+
+    // Insert into pde as an identity mapping
+    pde->present = 1;
+    pde->rw = 1;
+    pde->address = (uint32_t)mm_get_physaddr(pte) >> 12;
+
+    // Also map as "higher half" at the 3 GiB mark
     uint32_t higher_half_page =
-            ((uint32_t)&KERNEL_PHYS_ADDR + (uint32_t)&KERNEL_VIRT_OFFSET) >> 22;
-
-    g_kernel_page_dir[higher_half_page].present = 1;
-    g_kernel_page_dir[higher_half_page].rw = 1;
-    g_kernel_page_dir[higher_half_page].address = (uint32_t)pte >> 12;
-
-#if 0
-    int pages = 0;
+            ((uint32_t)&KERNEL_BOOT_VMA + (uint32_t)&KERNEL_HIGH_VMA) >> 22;
+    pde[higher_half_page].present = 1;
+    pde[higher_half_page].rw = 1;
+    pde[higher_half_page].address = (uint32_t)mm_get_physaddr(pte) >> 12;
 
     // Map the rest of available memory
+    int pages = 0;
     for (int i = 1; i < 1023; i++)
     {
         pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
@@ -106,23 +112,20 @@ void mm_init(void)
             pte[j].user = 1;
         }
 
-        g_kernel_page_dir[i].present = 1;
-        g_kernel_page_dir[i].rw = 1;
-        g_kernel_page_dir[i].user = 1;
-        g_kernel_page_dir[i].address = (uint32_t)pte >> 12;
+        pde[i].present = 1;
+        pde[i].rw = 1;
+        pde[i].user = 1;
+        pde[i].address = (uint32_t)mm_get_physaddr(pte) >> 12;
     }
-#endif
 
     // Map the last entry of the PDE to itself
-    g_kernel_page_dir[1023].present = 1;
-    g_kernel_page_dir[1023].rw = 1;
-    g_kernel_page_dir[1023].address =
-            (uint32_t)mm_get_physaddr(g_kernel_page_dir) >> 12;
+    pde[1023].present = 1;
+    pde[1023].rw = 1;
+    pde[1023].address = (uint32_t)mm_get_physaddr(pde) >> 12;
 
     // Enable paging
-    //mm_flush_tlb_full();
-    //write_cr3((uint32_t)&g_kernel_page_dir);
-    write_cr3((uint32_t)mm_get_physaddr(g_kernel_page_dir));
+    mm_flush_tlb_full();
+    write_cr3((uint32_t)mm_get_physaddr(pde));
     write_cr0(read_cr0() | 0x80000000);
 
     // Set up our page fault handler

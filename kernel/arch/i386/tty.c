@@ -8,8 +8,10 @@
 static const size_t VGA_WIDTH = 80, VGA_HEIGHT = 24;
 
 // Physical address of VGA screen buffer
+extern uint8_t KERNEL_HIGH_VMA;
 static volatile uint16_t *const tty_buf =
-        (volatile uint16_t *const)(0xB8000);
+        (volatile uint16_t *const)0xB8000;
+        //(volatile uint16_t *const)(0xB8000 + &KERNEL_HIGH_VMA);
 
 // Current position
 static size_t tty_row, tty_col;

@@ -29,6 +29,20 @@ void kinit(uint32_t boot_magic,
     PANIC_IF(mbi == NULL,
              "NULL multiboot info record passed to kinit");
 
+    // Update various addresses in the struct to reflect their virtual,
+    // higher-half counterparts
+#if 0
+    extern uint8_t KERNEL_HIGH_VMA;
+    uint32_t offset = (uint32_t)&KERNEL_HIGH_VMA;
+    mbi->boot_loader_name += offset;
+    mbi->cmdline += offset;
+    mbi->mmap_addr += offset;
+    mbi->mods_addr += (mbi->mods_addr ? offset : 0);
+    mbi->syms.elf.addr += offset; // updates syms.aout as well
+    mbi->vbe_control_info += offset;
+    mbi->vbe_mode_info += offset;
+#endif
+
     // Copy the Multiboot info struct so it doesn't get overwritten
     // in memory later
     // TODO: do this for Multiboot modules as well!
@@ -41,6 +55,8 @@ void kinit(uint32_t boot_magic,
 
     // Initialize the kernel placement heap
     mm_init_placement_heap();
+
+    //for (;;) ;
 }
 
 /* Kernel C-code main function, called once global constructors/initializers

@@ -1,16 +1,16 @@
-/* Virtual memory/higher half offsets */
-KERNEL_PHYS_ADDR   = 0x100000;
-KERNEL_VIRT_OFFSET = 0xC0000000;
+/* Source: http://wiki.osdev.org/User:Mduft/HigherHalf_Kernel_with_32-bit_Paging
+ * TODO: comment the code! */
 
-/* Symbol to use as the entry point for the kernel executable */
-/*_linker_start = _start - KERNEL_VIRT_OFFSET;*/
-ENTRY(_start);
+OUTPUT_FORMAT(elf32-i386)
+ENTRY(_start)
+KERNEL_BOOT_VMA = 0x00100000;
+KERNEL_HIGH_VMA = 0xC0000000;
 
 /* Tell where the various sections of the object files will be put in the final
  * kernel image */
 SECTIONS
 {
-    . = KERNEL_PHYS_ADDR;
+    . = KERNEL_BOOT_VMA;
 
     /* Multiboot header and bootstrap .text */
     .boot :
@@ -20,37 +20,33 @@ SECTIONS
     }
 
     /* Skip ahead to higher half address */
-    . = ALIGN(0x1000);
-    . += KERNEL_VIRT_OFFSET;
-    g_kernel_start = . ;
+    . += KERNEL_HIGH_VMA;
+    g_kernel_start = .;
 
     /* Multiboot header and .text */
-    .text ALIGN(0x1000) : AT(ADDR(.text) - KERNEL_VIRT_OFFSET)
+    .text ALIGN(0x1000) : AT(ADDR(.text) - KERNEL_HIGH_VMA)
     {
+        g_kernel_code = .;
         *(EXCLUDE_FILE(*/boot.o) .text)
-    }
 
-    /* Read-only data */
-    .rodata ALIGN(0x1000) : AT(ADDR(.rodata) - KERNEL_VIRT_OFFSET)
-    {
-        *(.rodata)
+        *(.rodata*)
     }
 
     /* Read-write data (initialized) */
-    .data ALIGN(0x1000) : AT(ADDR(.data) - KERNEL_VIRT_OFFSET)
+    .data ALIGN(0x1000) : AT(ADDR(.data) - KERNEL_HIGH_VMA)
     {
+        g_kernel_data = .;
         *(.data)
     }
 
     /* Read-write data (uninitialized) and stack */
     /*.bss BLOCK(0x1000) : ALIGN(0x1000)*/
-    .bss ALIGN(0x1000) : AT(ADDR(.bss) - KERNEL_VIRT_OFFSET)
+    .bss ALIGN(0x1000) : AT(ADDR(.bss) - KERNEL_HIGH_VMA)
     {
         g_bss_start = . ;
         
         *(COMMON)
         *(.bss)
-        *(.bootstrap_stack)
 
         /* Align/pad to the nearest 4K page boundary */
         . = ALIGN(0x1000);

@@ -78,3 +78,5 @@ kernel/kernel/liballoc.c
 kernel/include/kernel/liballoc.h
 kernel/kernel/liballoc_hooks.c
 kernel/arch/i386/mm/mm_asm.S
+kernel/arch/i386/linker.ld.orig
+kernel/arch/i386/boot.S.orig
