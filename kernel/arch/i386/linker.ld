@@ -54,5 +54,9 @@ SECTIONS
     }
 
     /* Page alignment is guaranteed for this symbol */
+    g_placement_heap_start = .;
+
+    . += 0x200000; /* DEBUG - to add more leeway for initial kernel stuff */
+
     g_kernel_end = . ;
 }

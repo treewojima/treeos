@@ -8,7 +8,7 @@
 // Initialize the keyboard driver
 void kbd_init(void);
 
-#ifdef __TREEOS_I386
+#ifdef TREEOS_I386
 #   include <arch/i386/kbd.h>
 #endif
 

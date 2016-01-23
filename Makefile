@@ -2,18 +2,18 @@ CC       := /opt/cross-i686/bin/i686-elf-gcc
 AR       := /opt/cross-i686/bin/i686-elf-ar
 LD       := /opt/cross-i686/bin/i686-elf-ld
 
-BUILDDIR   := $(PWD)/build
 SYSROOT    := $(PWD)/sysroot
 INCLUDEDIR := $(SYSROOT)/usr/include
 LIBDIR     := $(SYSROOT)/usr/lib
 BOOTDIR    := $(SYSROOT)/boot
 
-CFLAGS  := -c -pipe -ggdb3 -std=gnu11 -O0 -Wall -Wextra -Werror \
-           -ffreestanding -Ikernel/include -Ilibc/include -Ilibk/include \
-           --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR) -D__TREEOS_I386 \
-           -DNOT_IN_QT_CREATOR
-ASFLAGS := $(CFLAGS) -D__TREEOS_EXPORT_ASM
-LDFLAGS := -ffreestanding -fbuiltin -fno-common -nostdlib \
+WARNINGS := -Wall -Wextra -Wpedantic -Werror -Wshadow
+CFLAGS   := -c -pipe -ggdb3 -std=gnu11 -O0 $(WARNINGS) -fdiagnostics-color=always \
+            -ffreestanding -Ikernel/include -Ilibc/include -Ilibk/include \
+            --sysroot=$(SYSROOT) -DTREEOS_I386 \
+            -DNOT_IN_QT_CREATOR
+ASFLAGS  := $(CFLAGS) -DTREEOS_EXPORT_ASM
+LDFLAGS  := -ffreestanding -fbuiltin -fno-common -nostdlib \
            -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lc -lk
 
 KERNEL_CSOURCES := $(shell find kernel -type f -name "*.c" -print)
@@ -36,15 +36,15 @@ LIBK_OBJECTS   := $(patsubst %.c, %.o, $(LIBK_CSOURCES)) \
                   $(patsubst %.S, %.o, $(LIBK_ASOURCES))
 #DEPFILES := $(patsubst %.c, %.dep, $(CSOURCES))
 
-LIBC_TARGET   := $(BUILDDIR)/libc.a
-LIBK_TARGET   := $(BUILDDIR)/libk.a
-KERNEL_TARGET := $(BUILDDIR)/kernel.elf
-ISO_TARGET    := $(BUILDDIR)/treeos.iso
+LIBC_TARGET   := $(LIBDIR)/libc.a
+LIBK_TARGET   := $(LIBDIR)/libk.a
+KERNEL_TARGET := $(BOOTDIR)/kernel.elf
+ISO_TARGET    := $(PWD)/treeos.iso
 GRUB_CFG_FILE := $(BOOTDIR)/grub/grub.cfg
 
 .PHONY: dumpvars all kernel libs libc libk distclean clean clean-kernel \
-        clean-libs clean-sysroot install install-headers install-libs \
-	install-kernel install-grub iso
+        clean-libs clean-iso install install-headers install-libs \
+		install-kernel install-grub iso
 
 all: libs kernel
 
@@ -54,22 +54,21 @@ libc: $(LIBC_TARGET)
 
 libk: $(LIBK_TARGET)
 
-kernel: $(KERNEL_TARGET)
+kernel: libc libk $(KERNEL_TARGET)
 
 $(LIBC_TARGET): $(LIBC_OBJECTS)
-	mkdir -p $(BUILDDIR)
+	mkdir -p $(LIBDIR)
 	$(AR) rcs $@ $(LIBC_OBJECTS)
 
 $(LIBK_TARGET): $(LIBK_OBJECTS)
-	mkdir -p $(BUILDDIR)
+	mkdir -p $(LIBDIR)
 	$(AR) rcs $@ $(LIBK_OBJECTS)
 
 $(KERNEL_TARGET): $(KERNEL_OBJECTS) $(CRTI_OBJ) $(CRTN_OBJ)
-	mkdir -p $(BUILDDIR)
+	mkdir -p $(BOOTDIR)
 	$(CC) -o $(KERNEL_TARGET) $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(KERNEL_OBJECTS) $(CRTEND_OBJ) $(CRTN_OBJ) $(LDFLAGS)
 
-distclean: clean clean-sysroot
-	rm -f $(ISO_TARGET)
+distclean: clean clean-iso
 
 clean: clean-kernel clean-libs
 
@@ -81,8 +80,8 @@ clean-libs:
 	rm -f $(LIBC_TARGET) $(LIBK_TARGET) $(LIBC_OBJECTS) $(LIBK_OBJECTS)
 	@find libc -type f -iname "*~" -exec rm -f {} \;
 
-clean-sysroot:
-	rm -rf $(SYSROOT)
+clean-iso:
+	rm -f $(ISO_TARGET)
 
 #i-include $(DEPFILES)
 
@@ -92,21 +91,6 @@ clean-sysroot:
 %.o: %.S
 	$(CC) -o $@ $(ASFLAGS) $<
 
-install: install-headers install-libs install-kernel
-
-install-headers:
-	mkdir -p $(INCLUDEDIR)
-	cp -RTv kernel/include $(INCLUDEDIR)
-	cp -RTv libc/include $(INCLUDEDIR)
-
-install-libs: $(LIBC_TARGET) $(LIBK_TARGET)
-	mkdir -p $(LIBDIR)
-	cp $(LIBC_TARGET) $(LIBK_TARGET) $(LIBDIR)
-
-install-kernel: $(KERNEL_TARGET)
-	mkdir -p $(BOOTDIR)
-	cp $(KERNEL_TARGET) $(BOOTDIR)
-
 install-grub:
 	mkdir -p $(BOOTDIR)/grub
 	echo "set default=0" > $(GRUB_CFG_FILE)
@@ -115,7 +99,7 @@ install-grub:
 	echo "    multiboot /boot/kernel.elf" >> $(GRUB_CFG_FILE)
 	echo "}" >> $(GRUB_CFG_FILE)
 
-$(ISO_TARGET): install install-grub
+$(ISO_TARGET): kernel install-grub
 	grub2-mkrescue -o $(ISO_TARGET) $(SYSROOT)
 
 iso: $(ISO_TARGET)

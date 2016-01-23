@@ -4,4 +4,4 @@ build
 .*.swp
 ~*
 *.autosave
-
+*.iso

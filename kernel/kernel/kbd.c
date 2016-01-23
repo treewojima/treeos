@@ -19,7 +19,7 @@ static void kbd_int_handler();
  */
 void kbd_init(void)
 {
-    int_register_irq_handler(1, kbd_int_handler);
+    int_register_irq_handler(IRQ_KBD, kbd_int_handler);
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

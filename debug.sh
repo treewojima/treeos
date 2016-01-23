@@ -1,4 +1,5 @@
 #!/bin/sh
 
-qemu-system-i386 -S -s -m 128M -no-kvm -net none -cdrom build/treeos.iso -display sdl
+qemu-system-i386 -S -s -m 32M -no-kvm -net none -cdrom treeos.iso -display sdl &!
+i686-elf-gdb
 

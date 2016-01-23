@@ -5,7 +5,7 @@
 #include <kernel/interrupt.h>
 #include <stdio.h>
 
-static uint32_t ticks;
+static uint32_t system_ticks;
 
 //static void timer_callback(struct registers *registers);
 static void timer_callback();
@@ -23,10 +23,10 @@ static void timer_callback();
  */
 void timer_init(uint32_t frequency)
 {
-    ticks = 0;
+    system_ticks = 0;
 
     // Set up our timer callback on IRQ0
-    int_register_irq_handler(0, &timer_callback);
+    int_register_irq_handler(IRQ_PIT, &timer_callback);
 
     // The value sent to the PIT is the value to divide its input clock
     // (1193180 Hz) by, to get the required frequency.
@@ -56,7 +56,20 @@ void timer_init(uint32_t frequency)
  */
 uint32_t timer_getticks(void)
 {
-    return ticks;
+    return system_ticks;
+}
+
+/* Sleeps for the specified number of ticks
+ * Parameters:
+ *     ticks - number of ticks
+ *
+ * Returns:
+ *     void
+ */
+void timer_sleep(uint32_t ticks)
+{
+    uint32_t end_ticks = timer_getticks() + ticks;
+    while (timer_getticks() < end_ticks);
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -66,5 +79,5 @@ uint32_t timer_getticks(void)
 // Called everytime IRQ0 is fired
 static void timer_callback()
 {
-    ticks++;
+    system_ticks++;
 }

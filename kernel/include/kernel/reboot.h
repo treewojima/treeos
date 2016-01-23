@@ -3,7 +3,7 @@
 
 #include "defines.h"
 
-void reboot(void) __attribute__((noreturn));
-void halt(void) __attribute__((noreturn));
+void reboot(void) NORETURN;
+void halt(void) NORETURN;
 
 #endif

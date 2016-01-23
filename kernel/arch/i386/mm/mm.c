@@ -1,20 +1,17 @@
 #include <kernel/mm.h>
 
 #include <arch/i386/cpu.h>
-#include <kernel/debug.h>
 #include <kernel/interrupt.h>
 #include <kernel/multiboot.h>
-#include <kernel/reboot.h>
-#include <stdint.h>
+#include <kernel/panic.h>
 #include <stdio.h>
 #include <string.h>
 
-extern uint32_t g_placement_address;
+//extern uint32_t g_placement_address;
 extern uint8_t KERNEL_BOOT_VMA, KERNEL_HIGH_VMA;
 
-//extern struct page_dir_entry g_kernel_page_dir;//[1024];
-//extern struct page_table_entry g_kernel_page_table;//[1024];
-//extern struct page_table_entry g_kernel_low_page_table;//[1024];
+static struct page_dir_entry kernel_pde[1024] __attribute__ ((aligned (PAGE_SIZE)));
+static struct page_table_entry kernel_pte[1024] __attribute__ ((aligned (PAGE_SIZE)));
 
 // Page fault handler
 static void page_fault_int_handler(struct registers *registers);
@@ -45,7 +42,9 @@ void mm_init(void)
     printf("mem_total = %d KiB\n", mbi->mem_lower + mbi->mem_upper);
 
     // Initialize physical memory map
-    mm_init_frame_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
+    uint32_t bytes_allocated =
+            mm_init_page_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
+    printf("page_bitmap_bytes_allocated = %u\n", bytes_allocated);
 
     // Loop through the memory map that GRUB provides from the BIOS
     struct multiboot_memory_map *mmap =
@@ -71,10 +70,24 @@ void mm_init(void)
     // NOTE: Right now this just blindly allocates the first 4 MiB of memory
     mm_deinit_region(0, 4096 * 1024);
 
+#if 0
+    int_enable();
+    printf("dumping frame bitmap in ");
+    for (int i = 5; i > 0; i--)
+    {
+        printf("%d... ", i);
+        timer_sleep(100);
+    }
+    dump_frame_bitmap();
+    halt();
+#endif
+
     // Identity map the first 4 MiB of physical memory
-    struct page_table_entry *pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
+    //struct page_table_entry *pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
+    struct page_table_entry *pte = kernel_pte;
     memset(pte, 0, sizeof(*pte) * 1024);
-    for (int i = 0; i < 1024; i++)
+    // Skip the zero page
+    for (int i = 1; i < 1024; i++)
     {
         pte[i].present = 1;
         pte[i].rw = 1;
@@ -82,7 +95,8 @@ void mm_init(void)
     }
 
     // Create and initialize a new page directory
-    struct page_dir_entry *pde = mm_placement_alloc(sizeof(*pde) * 1024, true);
+    //struct page_dir_entry *pde = mm_placement_alloc(sizeof(*pde) * 1024, true);
+    struct page_dir_entry *pde = kernel_pde;
     memset(pde, 0, sizeof(*pde) * 1024);
 
     // Insert into pde as an identity mapping
@@ -97,10 +111,14 @@ void mm_init(void)
     pde[higher_half_page].rw = 1;
     pde[higher_half_page].address = (uint32_t)mm_get_physaddr(pte) >> 12;
 
+#if 0
     // Map the rest of available memory
     int pages = 0;
-    for (int i = 1; i < 1023; i++)
+    for (uint32_t i = 1; i < 1023; i++)
     {
+        // Skip the spot occupied by the higher half kernel
+        if (i == higher_half_page) continue;
+
         pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
 
         for (int j = 0; j < 1024; j++, pages++)
@@ -117,13 +135,14 @@ void mm_init(void)
         pde[i].user = 1;
         pde[i].address = (uint32_t)mm_get_physaddr(pte) >> 12;
     }
+#endif
 
     // Map the last entry of the PDE to itself
     pde[1023].present = 1;
     pde[1023].rw = 1;
     pde[1023].address = (uint32_t)mm_get_physaddr(pde) >> 12;
 
-    // Enable paging
+    // Switch to the new paging setup
     mm_flush_tlb_full();
     write_cr3((uint32_t)mm_get_physaddr(pde));
     write_cr0(read_cr0() | 0x80000000);
@@ -131,7 +150,6 @@ void mm_init(void)
     // Set up our page fault handler
     int_register_handler(14, page_fault_int_handler);
 
-    //printf("[mm] paging enabled (%d pages/%u KiB free)\n", pages, pages * PAGE_SIZE / 1024);
     printf("[mm] paging enabled\n");
 }
 
@@ -167,6 +185,23 @@ void *mm_get_physaddr(void *virtualaddr)
     uint32_t *pte_int = (uint32_t *)&pte[pgtbl_index];
     return (void *)((*pte_int & ~0xFFF) + ((uint32_t)virtualaddr & 0xFFF));
 }
+
+#if 0
+void dump_pgdir(void)
+{
+    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
+    for (int i = 0; i < 1024; i++)
+    {
+        if (!pde[i].present) continue;
+
+        pde[i].a
+        for (int j = 0; j < 1024; j++)
+        {
+
+        }
+    }
+}
+#endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  STATIC FUNCTIONS                                                         *

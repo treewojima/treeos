@@ -5,11 +5,14 @@
 #include <kernel/mm.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
+#include <kernel/reboot.h>
 #include <kernel/timer.h>
 #include <kernel/tty.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+static void test_map_page(void);
 
 /* Kernel C-code entry point
  * Parameters:
@@ -75,29 +78,37 @@ void kmain(void)
     int_init();
     tss_init();
 
+    // Initialize system timer and keyboard driver
+    timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
+    //kbd_init();
+
     // Initialize paging and the proper kernel heap
     mm_init();
-    mm_init_kernel_heap();
-
-    // Initialize the system timer and keyboard driver
-    timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
-    kbd_init();
-
     int_enable();
+    test_map_page();
 
-#if 0
+    panic("end of kmain");
+}
+
+void test_map_page(void)
+{
+    printf("testing map_page\n");
+
     struct page_table_entry pte = { 0 };
-    PANIC_IF(!mm_alloc_frame(&pte), "out of memory");
+    PANIC_IF(!mm_alloc_page(&pte), "out of memory");
 
-    uint32_t real_physaddr = pte.address << 12;
-    map_page(real_physaddr, (32 * 1024 * 1024), true, true);
+    const uint32_t vaddr = 768 * 1024 * 1024;
 
-    int *test = (int *)(32 * 1024 * 1024);
-    *test = 69;
+    uint32_t paddr = pte.address << 12;
+    mm_map_page(paddr, vaddr, true, true, true);
+
+    int *test = (int *)vaddr;
+    //*test = 69;
     printf("*test      = %d\n", *test);
     printf("test_vaddr = %p\n", test);
     printf("test_paddr = %p\n", mm_get_physaddr(test));
-#endif
 
-    for (;;) ;
+    mm_free_page(&pte);
+
+    printf("done testing map_page\n");
 }

@@ -176,7 +176,8 @@ init_bootstrap_paging:
         jnz  idmap_first_mb_loop
 
     movl $KERNEL_BOOT_VMA, %ecx
-    movl $g_kernel_end     , %eax
+    movl $g_kernel_end   , %eax
+    #movl $0x400000       , %eax
     subl $KERNEL_HIGH_VMA, %eax
 
     map_kernel:

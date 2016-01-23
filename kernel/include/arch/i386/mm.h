@@ -2,13 +2,13 @@
 #define __TREEOS_KERNEL_ARCH_MM_H__
 
 #include "defines.h"
-#ifndef __TREEOS_I386
+#ifndef TREEOS_I386
 #   error included i386-specific header (mm.h) in non-i386 build
 #endif
 
 #define PAGE_SIZE 4096
 
-#ifndef __TREEOS_EXPORT_ASM
+#ifndef TREEOS_EXPORT_ASM
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -27,7 +27,7 @@ struct page_dir_entry
                            : 1;  // hidden unused field
    uint32_t os_flags       : 3;  // flags that can be used by the OS
    uint32_t address        : 20; // aligned address of page table, right-shifted by 12
-} __attribute__((packed));
+} PACKED;
 
 struct page_table_entry // aka a page
 {
@@ -40,15 +40,31 @@ struct page_table_entry // aka a page
                             : 2;  // hidden reserved fields
     uint32_t os_flags       : 3;  // flags that can be used by the OS
     uint32_t address        : 20; // physical address of page, right-shifted by 12
-} __attribute__((packed));
+} PACKED;
 
-struct page_table_entry *mm_alloc_frame(struct page_table_entry *frame);
-void mm_free_frame(struct page_table_entry *frame);
+// Memory map and full paging initialization (arch/i386/mm/mm.c)
+void mm_init(void);
 
-uint32_t mm_init_frame_bitmap(uint32_t mem_size);
+// Address translation (arch/i386/mm/mm.c)
+void *mm_get_physaddr(void *virtualaddr);
+
+// Page manipulation (arch/i386/mm/page.c)
+struct page_table_entry *mm_alloc_page(struct page_table_entry *frame);
+void mm_map_page(uint32_t physaddr,
+                 uint32_t virtualaddr,
+                 bool rw,
+                 bool user,
+                 bool flush_tlb);
+void mm_free_page(struct page_table_entry *frame);
+uint32_t mm_init_page_bitmap(uint32_t mem_size);
 void mm_init_region(uint32_t base, uint32_t size);
 void mm_deinit_region(uint32_t base, uint32_t size);
 
+// Early placement heap functions (arch/i386/mm/placement_heap.c)
+void mm_init_placement_heap(void);
+void *mm_placement_alloc(uint32_t size, bool zero, bool align);
+
+// TLB flushing - implemented in assembly (arch/i386/mm/mm_asm.S)
 extern void mm_flush_tlb(uint32_t virtualaddr);
 extern void mm_flush_tlb_full(void);
 

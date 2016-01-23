@@ -63,8 +63,8 @@ void int_init(void)
     idt_init();
     remap_pic();
 
-    memset(g_int_handler_table, 0, sizeof(int_handler_t) * INT_NUM_INTERRUPTS);
-    memset(irq_handler_table, 0, sizeof(int_handler_t) * NUM_IRQS);
+    memset(g_int_handler_table, 0, sizeof(int_handler_t*) * INT_NUM_INTERRUPTS);
+    memset(irq_handler_table, 0, sizeof(int_handler_t*) * NUM_IRQS);
 
     // Initialize the default interrupt handlers
     for (int i = 0; i < INT_NUM_INTERRUPTS; i++)

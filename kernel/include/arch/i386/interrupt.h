@@ -2,7 +2,7 @@
 #define __TREEOS_KERNEL_ARCH_INTERRUPT_H__
 
 #include "defines.h"
-#ifndef __TREEOS_I386
+#ifndef TREEOS_I386
 #   error included i386-specific header (interrupt.h) in non-i386 build
 #endif
 
@@ -12,10 +12,17 @@
 
 #define INT_CALL_HANDLER_DIRECTLY
 
-#ifndef __TREEOS_EXPORT_ASM
+#define IRQ_PIT 0
+#define IRQ_KBD 1
+
+#ifndef TREEOS_EXPORT_ASM
+
+#include <arch/i386/cpu.h>
 
 #define int_enable()  __asm__ __volatile__ ("sti")
 #define int_disable() __asm__ __volatile__ ("cli")
+
+#define int_enabled() (get_eflags() & (1 << 9))
 
 #endif
 

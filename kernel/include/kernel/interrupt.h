@@ -3,7 +3,7 @@
 
 #include "defines.h"
 
-#ifdef __TREEOS_I386
+#ifdef TREEOS_I386
 #   include <arch/i386/interrupt.h>
 #endif
 

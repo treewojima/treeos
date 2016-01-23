@@ -13,4 +13,7 @@ void timer_init(uint32_t frequency);
 // Get system tick count
 uint32_t timer_getticks(void);
 
+// Sleep for specified number of ticks
+void timer_sleep(uint32_t ticks);
+
 #endif
