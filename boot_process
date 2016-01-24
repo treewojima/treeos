@@ -1,0 +1,14 @@
+     kernel
+        v
+clock/system tasks
+        v
+  process server
+        v
+     watchdog
+        v
+   drivers/etc
+        v
+(block for finish)
+        v
+       init
+
