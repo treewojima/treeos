@@ -13,7 +13,7 @@ CFLAGS   := -c -pipe -ggdb3 -std=gnu11 -O0 $(WARNINGS) -fdiagnostics-color=alway
             --sysroot=$(SYSROOT) -DTREEOS_I386 \
             -DNOT_IN_QT_CREATOR
 ASFLAGS  := $(CFLAGS) -DTREEOS_EXPORT_ASM
-LDFLAGS  := -ffreestanding -fbuiltin -fno-common -nostdlib \
+LDFLAGS  := -ffreestanding -fno-common -nostdlib \
            -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lc -lk
 
 KERNEL_CSOURCES := $(shell find kernel -type f -name "*.c" -print)
