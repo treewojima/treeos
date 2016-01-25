@@ -6,6 +6,7 @@ void reboot(void)
 {
     // Just call halt() for now
     halt();
+    __builtin_unreachable();
 }
 
 void halt(void)

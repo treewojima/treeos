@@ -9,8 +9,7 @@
 
 static char msg_buf[MAX_PANIC_BUF];
 
-__attribute__((__noreturn__))
-void __panic(const char *file, int line, const char *msg)
+void _panic(const char *file, int line, const char *msg)
 {
     memset(msg_buf, 0, MAX_PANIC_BUF);
     sprintf(msg_buf, "panic (%s:%d): %s", file, line, msg);
@@ -19,7 +18,7 @@ void __panic(const char *file, int line, const char *msg)
     halt();
 }
 
-void __worry(const char *file, int line, const char *msg)
+void _worry(const char *file, int line, const char *msg)
 {
     memset(msg_buf, 0, MAX_PANIC_BUF);
     sprintf(msg_buf, "worry (%s:%d): %s\n", file, line, msg);
@@ -27,8 +26,7 @@ void __worry(const char *file, int line, const char *msg)
     tty_puts_color(msg_buf, TTY_COLOR_WORRY, true);
 }
 
-__attribute__((__noreturn__))
-void __panic_r(const char *file,
+void _panic_r(const char *file,
               int line,
               const char *msg,
               const struct registers *const registers)
