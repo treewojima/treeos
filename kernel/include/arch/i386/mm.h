@@ -6,7 +6,9 @@
 #   error included i386-specific header (mm.h) in non-i386 build
 #endif
 
-#define PAGE_SIZE 4096
+// PAGE_SIZE = 4096
+#define PAGE_SIZE_SHIFT 12
+#define PAGE_SIZE       (1 << PAGE_SIZE_SHIFT)
 
 #ifndef TREEOS_EXPORT_ASM
 

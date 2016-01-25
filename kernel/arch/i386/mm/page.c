@@ -1,62 +1,55 @@
 #include <kernel/mm.h>
 
 #include <kernel/debug.h>
-#include <kernel/panic.h>
+#include <kernel/util/bitmap.h>
 #include <stdio.h>
 #include <string.h>
 
-#define BITS_PER_BITMAP (8 * sizeof(*page_bitmap))
-
-static uint32_t page_count, *page_bitmap;
-
-static void set_bit(uint32_t bit);
-static void clear_bit(uint32_t bit);
-static bool test_bit(uint32_t bit);
-static uint32_t first_free(void);
+static uint32_t page_count;
+static struct bitmap *page_bitmap;
 
 uint32_t mm_init_page_bitmap(uint32_t mem_size)
 {    
-    page_count = mem_size / PAGE_SIZE;
+    page_count = mem_size >> PAGE_SIZE_SHIFT;
     if (mem_size % PAGE_SIZE) page_count++;
 
-    uint32_t num_elements = page_count / BITS_PER_BITMAP;
-    if (page_count % BITS_PER_BITMAP) num_elements++;
-
-    page_bitmap = mm_placement_alloc(num_elements, false, false);
+    page_bitmap = bitmap_alloc(page_count);
 
     // Set all of memory as "in use" by default
     //uint32_t bytes_allocated =
     //        frame_count / (BITS_PER_BITMAP / sizeof(*frame_bitmap));
-    uint32_t bytes_allocated = num_elements * sizeof(*page_bitmap);
-    memset(page_bitmap, 0xFF, bytes_allocated);
+    uint32_t bytes_allocated = page_bitmap->word_count * sizeof(*page_bitmap->bits);
+    memset(page_bitmap->bits, 0xFF, bytes_allocated);
 
     return bytes_allocated;
 }
 
 void mm_init_region(uint32_t base, uint32_t size)
 {
-    base /= PAGE_SIZE;
-    size /= PAGE_SIZE;
+    base >>= PAGE_SIZE_SHIFT;
+    size >>= PAGE_SIZE_SHIFT;
 
-    while ((int)size >= 0)
+    //while ((int)size >= 0)
+    for (; (int)size >= 0; base++, size--)
     {
-        clear_bit(base++);
-        size--;
+        bitmap_clear_bit(page_bitmap, base);
+        //base++; size--;
     }
 
     // Ensure that allocations can't return zero
-    set_bit(0);
+    bitmap_set_bit(page_bitmap, 0);
 }
 
 void mm_deinit_region(uint32_t base, uint32_t size)
 {
-    base /= PAGE_SIZE;
-    size /= PAGE_SIZE;
+    base >>= PAGE_SIZE_SHIFT;
+    size >>= PAGE_SIZE_SHIFT;
 
-    while ((int)size >= 0)
+    //while ((int)size >= 0)
+    for (; (int)size >= 0; base++, size--)
     {
-        set_bit(base++);
-        size--;
+        bitmap_set_bit(page_bitmap, base);
+        //base++; size--;
     }
 }
 
@@ -64,16 +57,23 @@ struct page_table_entry *mm_alloc_page(struct page_table_entry *page)
 {
     KASSERT(page);
 
-    uint32_t address = first_free();
-    if (address == (uint32_t)-1)
+    uint32_t bit = bitmap_first_free(page_bitmap);
+    if (bit == (uint32_t)-1)
     {
         return NULL;
     }
 
-    set_bit(address);
-    address *= PAGE_SIZE;
+    bitmap_set_bit(page_bitmap, bit);
 
-    page->address = address >> 12;
+    // Note that because of the offset of the address field in a PTE, if the
+    // page size is 4096, the shifting operations cancel each other out. This
+    // will not be the case if PAGE_SIZE is different though
+#if PAGE_SIZE != 4096
+    page->address = bit * PAGE_SIZE >> 12;
+#else
+    page->address = bit;
+#endif
+
     return page;
 }
 
@@ -81,9 +81,14 @@ void mm_free_page(struct page_table_entry *page)
 {
     KASSERT(page);
 
+#if PAGE_SIZE != 4096
     uint32_t bit = (page->address << 12) / PAGE_SIZE;
-    WORRY_IF(!test_bit(bit), "clearing unset bit");
-    clear_bit(bit);
+#else
+    uint32_t bit = page->address;
+#endif
+
+    WORRY_IF(!bitmap_test_bit(page_bitmap, bit), "clearing unset bit");
+    bitmap_clear_bit(page_bitmap, bit);
 }
 
 void mm_map_page(uint32_t physaddr,
@@ -92,8 +97,12 @@ void mm_map_page(uint32_t physaddr,
                  bool user,
                  bool flush_tlb)
 {
-    PANIC_IF((physaddr & 0xFFF) != 0, "physical address is not page-aligned");
-    PANIC_IF((virtualaddr & 0xFFF) != 0, "virtual address is not page-aligned");
+    PANIC_IF((physaddr & 0xFFF) != 0,
+             "physical address is not page-aligned");
+    PANIC_IF((virtualaddr & 0xFFF) != 0,
+             "virtual address is not page-aligned");
+    PANIC_IF(!bitmap_test_bit(page_bitmap, physaddr >> PAGE_SIZE_SHIFT),
+             "mapping page that is not allocated in page_bitmap");
 
     uint32_t pgdir_index = (uint32_t)virtualaddr >> 22;
     uint32_t pgtbl_index = (uint32_t)virtualaddr >> 12 & 0x03FF;
@@ -135,38 +144,4 @@ void mm_map_page(uint32_t physaddr,
 
     // Update the TLB
     if (flush_tlb) mm_flush_tlb(virtualaddr);
-}
-
-static void set_bit(uint32_t bit)
-{
-    page_bitmap[bit / BITS_PER_BITMAP] |= (1 << (bit % BITS_PER_BITMAP));
-}
-
-static void clear_bit(uint32_t bit)
-{
-    page_bitmap[bit / BITS_PER_BITMAP] &= ~(1 << (bit % BITS_PER_BITMAP));
-}
-
-static bool test_bit(uint32_t bit)
-{
-    return page_bitmap[bit / BITS_PER_BITMAP] & (1 << (bit % BITS_PER_BITMAP));
-}
-
-static uint32_t first_free(void)
-{
-    for (uint32_t i = 0; i < page_count / BITS_PER_BITMAP; i++)
-    {
-        if (page_bitmap[i] != (uint32_t)-1)
-        {
-            for (uint32_t j = 0; j < BITS_PER_BITMAP; j++)
-            {
-                if (!(page_bitmap[i] & (1 << j)))
-                {
-                    return i * BITS_PER_BITMAP + j;
-                }
-            }
-        }
-    }
-
-    return (uint32_t)-1;
 }
