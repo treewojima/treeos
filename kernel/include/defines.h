@@ -12,10 +12,18 @@
 #   define NULL ((void *)0)
 #endif
 
+//#define CHECK_FORMAT_STRING
+
 #ifdef __GNUC__
-#   define ALIGNED(n) __attribute__ ((aligned (n)))
-#   define PACKED     __attribute__ ((packed))
-#   define NORETURN   __attribute__ ((noreturn))
+#   define ALIGNED(n) __attribute__((aligned((n))))
+#   define PACKED     __attribute__((packed))
+#   define NORETURN   __attribute__((noreturn))
+#   ifdef CHECK_FORMAT_STRING
+#      define FORMAT(str, vararg) \
+           __attribute__((format(printf, (str), (vararg))))
+#   else
+#      define FORMAT(str, vararg)
+#   endif
 #else
 #   error "compilers other than GCC are not supported"
 #endif
