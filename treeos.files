@@ -82,3 +82,4 @@ kernel/arch/i386/boot.S.orig
 kernel/arch/i386/mm/free_space.c
 kernel/arch/i386/mm/placement_heap.c
 kernel/include/kernel/sched.h
+kernel/include/kernel/ipc/msg.h
