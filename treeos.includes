@@ -6,4 +6,3 @@ kernel/arch/i386/mm
 kernel/include/kernel
 kernel/kernel
 kernel/include/arch/i386
-kernel/include/kernel/ipc
