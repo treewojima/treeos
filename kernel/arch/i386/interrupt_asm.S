@@ -1,6 +1,41 @@
 .section .text
 
-#include <arch/i386/interrupt.h>
+# Interrupt handler stub function
+.type int_handler_stub, @function
+int_handler_stub:
+    # Preserve some registers (as a registers struct)
+    pushal
+    pushl %ds
+    pushl %es
+    pushl %fs
+    pushl %gs
+
+    # Switch to kernel data segment descriptor
+    movw $0x10, %ax
+    movw %ax  , %ds
+    movw %ax  , %es
+    movw %ax  , %fs
+    movw %ax  , %gs
+
+    # Find the address of the interrupt handler function (in C)
+    movl 48(%esp), %esi             # grab the interrupt value out of the stack
+    movl $g_int_handler_table, %eax
+    movl (%eax, %esi, 4), %ebx      # grab the address of the C function
+    pushl %esp                      # push the address of x86_registers struct
+    call *%ebx
+    add $4, %esp
+
+    # Reload original registers, clean up stack and return
+    popl %gs
+    popl %fs
+    popl %es
+    popl %ds
+    popal
+    addl $8, %esp
+    #sti
+    iret
+
+# Macro-defined interrupt functions
 
 .macro ASM_ISR_NOERRCODE inum
     .global isr\inum
@@ -88,60 +123,3 @@ ASM_ISR_IRQ 15, 47
 
 # Finally the syscall handler
 ASM_ISR_NOERRCODE 48
-
-# Interrupt handler stub function
-.type int_handler_stub, @function
-int_handler_stub:
-    # Preserve some registers (as a registers struct)
-    pushal
-    pushl %ds
-    pushl %es
-    pushl %fs
-    pushl %gs
-
-    # Switch to kernel data segment descriptor
-    movw $0x10, %ax
-    movw %ax  , %ds
-    movw %ax  , %es
-    movw %ax  , %fs
-    movw %ax  , %gs
-
-#ifdef INT_CALL_HANDLER_DIRECTLY
-    # Find the address of the interrupt handler function (in C)
-    movl 48(%esp), %esi             # grab the interrupt value out of the stack
-    movl $g_int_handler_table, %eax
-    movl (%eax, %esi, 4), %ebx      # grab the address of the C function
-    pushl %esp                      # push the address of x86_registers struct
-    call *%ebx
-    add $4, %esp
-#else
-    pushl %esp
-    call int_handler
-    addl $4, %esp
-#endif
-
-    # Reload original registers, clean up stack and return
-    popl %gs
-    popl %fs
-    popl %es
-    popl %ds
-    popal
-    addl $8, %esp
-    #sti
-    iret
-
-# Enable interrupts
-#.global _int_enable
-#.align 8
-#.type _int_enable, @function
-#_int_enable:
-#    sti
-#    ret
-
-# Disable interrupts
-#.global _int_disable
-#.align 8
-#.type _int_disable, @function
-#_int_disable:
-#    cli
-#    ret

@@ -10,8 +10,6 @@
 #define INT_HANDLER_STUB_LEN  16
 #define INT_SYSCALL_INTERRUPT 48
 
-#define INT_CALL_HANDLER_DIRECTLY
-
 #define IRQ_PIT 0
 #define IRQ_KBD 1
 

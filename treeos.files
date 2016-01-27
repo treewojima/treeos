@@ -86,3 +86,4 @@ kernel/include/kernel/util/bitmap.h
 kernel/kernel/util/bitmap.c
 kernel/include/arch/i386/const.h
 kernel/include/kernel/const.h
+kernel/arch/i386/isr.h
