@@ -1,7 +1,9 @@
 #ifndef __TREEOS_KERNEL_INTERRUPT_H__
 #define __TREEOS_KERNEL_INTERRUPT_H__
 
-#include "defines.h"
+#include <defines.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #ifdef TREEOS_I386
 #   include <arch/i386/interrupt.h>
@@ -12,11 +14,13 @@ struct registers;
 typedef void (int_handler_t)(struct registers *);
 
 void int_init(void);
-void int_register_handler(int interrupt, int_handler_t handler);
-void int_register_irq_handler(int irq, int_handler_t handler);
 
-#ifndef INT_CALL_HANDLER_DIRECTLY
-void int_handler(struct registers *registers);
-#endif
+// Interrupt and IRQ handlers
+void int_register_handler(uint8_t interrupt, int_handler_t handler);
+void int_register_irq_handler(uint8_t irq, int_handler_t handler);
+
+// IRQ masking
+bool int_mask_irq(uint8_t irq);
+bool int_unmask_irq(uint8_t irq);
 
 #endif

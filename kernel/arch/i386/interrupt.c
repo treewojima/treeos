@@ -11,7 +11,13 @@
 #include <stdio.h>
 #include <string.h>
 
-// i8259A PIC definitions
+// PIC I/O ports
+#define PIC_MASTER_CMD  0x20
+#define PIC_MASTER_DATA (PIC_MASTER_CMD + 1)
+#define PIC_SLAVE_CMD   0xA0
+#define PIC_SLAVE_DATA  (PIC_SLAVE_CMD + 1)
+
+// Command definitions
 #define ICW1         0x11  // ICW1 - ICW4 needed, cascade mode, interval = 8,
                            // edge triggered. (I think interval is irrelevant
                            // for x86.)
@@ -27,15 +33,20 @@
 #define SLAVE(mask)  (((mask) >> 8) & 0xFF)
 
 // External IRQs range from 32-47
-#define FIRST_IRQ_INT 32
-#define NUM_IRQS  16
-#define VALID_IRQ(irq) ((irq) >= 0 && (irq) < NUM_IRQS)
+#define FIRST_IRQ_INT  32
+#define NUM_IRQS       16
+#define VALID_IRQ(irq) ((irq) < NUM_IRQS)
 
 // Global table of interrupt handler functions
 int_handler_t *g_int_handler_table[INT_NUM_INTERRUPTS];
 
 // Private table of IRQ handlers
-int_handler_t *irq_handler_table[NUM_IRQS];
+static int_handler_t *irq_handler_table[NUM_IRQS];
+
+// IRQ mask
+uint16_t irq_mask;
+#define IRQ_MASK_MASTER(m) (uint8_t)((m) & 0xFF)
+#define IRQ_MASK_SLAVE(m)  (uint8_t)(((m) >> 8) & 0xFF)
 
 // Static prototypes
 static void remap_pic(void);
@@ -91,9 +102,9 @@ void int_init(void)
     printf("[cpu] initialized interrupt and IRQ handlers\n");
 }
 
-void int_register_handler(int interrupt, int_handler_t handler)
+void int_register_handler(uint8_t interrupt, int_handler_t handler)
 {
-    KASSERT(interrupt >= 0 && interrupt < INT_NUM_INTERRUPTS);
+    KASSERT(interrupt < INT_NUM_INTERRUPTS);
 
     // Make sure we're not trying to change any special interrupts
     PANIC_IF(interrupt == INT_SYSCALL_INTERRUPT,
@@ -112,9 +123,10 @@ void int_register_handler(int interrupt, int_handler_t handler)
     }
 }
 
-void int_register_irq_handler(int irq, int_handler_t handler)
+void int_register_irq_handler(uint8_t irq, int_handler_t handler)
 {
     KASSERT(VALID_IRQ(irq));
+    KASSERT(irq != 2);
     //KASSERT(handler != NULL);
 
     // Because our IRQ handler code checks for NULL handler references, don't
@@ -122,12 +134,71 @@ void int_register_irq_handler(int irq, int_handler_t handler)
     irq_handler_table[irq] = handler;
 }
 
-#ifndef INT_CALL_HANDLER_DIRECTLY
-void int_handler(struct registers *registers)
+bool int_mask_irq(uint8_t irq)
 {
-    g_int_handler_table[registers->int_num](registers);
+    KASSERT(VALID_IRQ(irq));
+    KASSERT(irq != 2);
+
+    uint8_t real_irq = 1 << irq;
+
+    // Check if the IRQ is already masked
+    bool masked = false;
+    if (irq_mask & real_irq)
+    {
+        char buf[40];
+        sprintf(buf, "masking already masked IRQ %u\n", irq);
+        worry(buf);
+        masked = true;
+    }
+    else
+    {
+        irq_mask |= real_irq;
+
+        if (irq < 8)
+        {
+            ioport_outb(PIC_MASTER_DATA, IRQ_MASK_MASTER(irq_mask));
+        }
+        else
+        {
+            ioport_outb(PIC_SLAVE_DATA, IRQ_MASK_SLAVE(irq_mask));
+        }
+    }
+
+    return masked;
 }
-#endif
+
+bool int_unmask_irq(uint8_t irq)
+{
+    KASSERT(VALID_IRQ(irq));
+    KASSERT(irq != 2);
+
+    uint8_t real_irq = 1 << irq;
+
+    // Check if the IRQ is already unmasked
+    bool unmasked = false;
+    if (!(irq_mask & real_irq))
+    {
+        char buf[40];
+        sprintf(buf, "masking already masked IRQ %u\n", irq);
+        worry(buf);
+        unmasked = true;
+    }
+    else
+    {
+        irq_mask &= ~real_irq;
+
+        if (irq < 8)
+        {
+            ioport_outb(PIC_MASTER_DATA, IRQ_MASK_MASTER(irq_mask));
+        }
+        else
+        {
+            ioport_outb(PIC_SLAVE_DATA, IRQ_MASK_SLAVE(irq_mask));
+        }
+    }
+
+    return unmasked;
+}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  STATIC FUNCTIONS                                                         *
@@ -136,16 +207,18 @@ void int_handler(struct registers *registers)
 // Initialize/remap the Intel 8259 PIC
 static void remap_pic(void)
 {
-    ioport_outb(0x20, ICW1);        // ICW1 to master
-    ioport_outb(0xA0, ICW1);        // ICW1 to slave
-    ioport_outb(0x21, ICW2_MASTER); // ICW2 to master
-    ioport_outb(0xA1, ICW2_SLAVE);  // ICW2 to slave
-    ioport_outb(0x21, ICW3_MASTER); // ICW3 to master
-    ioport_outb(0xA1, ICW3_SLAVE);  // ICW3 to slave
-    ioport_outb(0x21, ICW4);        // ICW4 to master
-    ioport_outb(0xA1, ICW4);        // ICW4 to slave
-    ioport_outb(0x21, 0);           // slave int masks
-    ioport_outb(0xA1, 0);           // master int masks
+    ioport_outb(PIC_MASTER_CMD,  ICW1);        // ICW1 to master
+    ioport_outb(PIC_SLAVE_CMD,   ICW1);        // ICW1 to slave
+    ioport_outb(PIC_MASTER_DATA, ICW2_MASTER); // ICW2 to master
+    ioport_outb(PIC_SLAVE_DATA,  ICW2_SLAVE);  // ICW2 to slave
+    ioport_outb(PIC_MASTER_DATA, ICW3_MASTER); // ICW3 to master
+    ioport_outb(PIC_SLAVE_DATA,  ICW3_SLAVE);  // ICW3 to slave
+    ioport_outb(PIC_MASTER_DATA, ICW4);        // ICW4 to master
+    ioport_outb(PIC_SLAVE_DATA,  ICW4);        // ICW4 to slave
+
+    ioport_outb(PIC_MASTER_DATA, 0xFB); // mask all master IRQs except #2 (the cascade)
+    ioport_outb(PIC_SLAVE_DATA,  0xFF); // mask all slave IRQs
+    irq_mask = 0xFFFB;
 }
 
 static void unexpected_int_handler(struct registers *registers)
@@ -204,16 +277,14 @@ static void unexpected_int_handler(struct registers *registers)
 
 static void irq_int_handler(struct registers *registers)
 {
-    const int irq = registers->int_num - FIRST_IRQ_INT;
-    //const uint8_t command = 0x60 | (irq & 0x7);
-
+    const uint8_t irq = registers->int_num - FIRST_IRQ_INT;
     KASSERT(VALID_IRQ(irq));
 
     // Invoke the handler if there is one
     if (!irq_handler_table[irq])
     {
         char buf[64];
-        sprintf(buf, "\nunhandled but active IRQ %d; ignoring", irq);
+        sprintf(buf, "\nunmasked but unhandled IRQ %d; ignoring", irq);
         tty_puts_color(buf, TTY_COLOR_WORRY, true);
         //panic_r(buf, registers);
     }
@@ -226,9 +297,9 @@ static void irq_int_handler(struct registers *registers)
     // (and slave controller if necessary)
     if (irq >= 8)
     {
-        ioport_outb(0xA0, 0x20);
+        ioport_outb(PIC_SLAVE_CMD, 0x20);
     }
-    ioport_outb(0x20, 0x20);
+    ioport_outb(PIC_MASTER_CMD, 0x20);
 }
 
 static void syscall_int_handler(struct registers *registers)
