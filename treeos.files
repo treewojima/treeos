@@ -39,8 +39,6 @@ klibc/stdio/sprintf.c
 kernel/include/kernel/timer.h
 kernel/arch/i386/timer.c
 kernel/arch/i386/ioport.c
-libk/include/kernel/syscall.h
-libk/arch/i386/syscall.S
 Makefile
 run.sh
 debug.sh
