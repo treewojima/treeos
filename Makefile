@@ -33,7 +33,9 @@ KERNEL_OBJECTS := $(patsubst %.c, %.o, $(KERNEL_CSOURCES)) \
 KLIBC_OBJECTS  := $(patsubst %.c, %.o, $(KLIBC_CSOURCES)) \
                   $(patsubst %.S, %.o, $(KLIBC_ASOURCES))
 DEPFILES       := $(patsubst %.c, %.d, $(ALL_CSOURCES)) \
-				  $(patsubst %.S, %.d, $(ALL_ASOURCES))
+				  $(patsubst %.S, %.d, $(ALL_ASOURCES)) \
+				  $(patsubst %.o, %.d, $(CRTI_OBJ)) \
+				  $(patsubst %.o, %.d, $(CRTN_OBJ))
 
 KLIBC_TARGET   := $(LIBDIR)/libklibc.a
 KERNEL_TARGET  := $(BOOTDIR)/kernel.elf

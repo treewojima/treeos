@@ -5,6 +5,7 @@
 #include <kernel/mm.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
+#include <kernel/proc.h>
 #include <kernel/reboot.h>
 #include <kernel/timer.h>
 #include <kernel/tty.h>

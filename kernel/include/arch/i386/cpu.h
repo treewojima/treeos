@@ -12,9 +12,9 @@
 
 #include <stdint.h>
 
+// Thread context
 struct registers
 {
-    // Saved processor registers
     uint32_t gs;
     uint32_t fs;
     uint32_t es;
@@ -27,22 +27,14 @@ struct registers
     uint32_t edx;
     uint32_t ecx;
     uint32_t eax;
-
-    // Interrupt number
     uint32_t int_num;
-
-    // If the processor doesn't explicitly push an error code, the interrupt
-    // handler pushes a dummy value so that the stack layout is the same for
-    // all interrupts
     uint32_t error_code;
-
-    // The processor pushes these values onto the stack on an interrupt
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
     uint32_t esp;
     uint32_t ss;
-};
+} PACKED;
 
 void gdt_init(void);
 void idt_init(void);

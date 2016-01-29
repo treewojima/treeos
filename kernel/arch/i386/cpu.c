@@ -1,4 +1,5 @@
 #include <arch/i386/cpu.h>
+#include <arch/i386/proc/task.h> // for struct tss_entry
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <stdio.h>
@@ -14,7 +15,7 @@ struct gdt_entry
     uint8_t access;       // access flags
     uint8_t granularity;  // granularity byte
     uint8_t base_high;    // last 8 bits of base
-} __attribute__((packed));
+} PACKED;
 
 // Entry in the interrupt descriptor table
 struct idt_entry
@@ -24,56 +25,20 @@ struct idt_entry
     uint16_t selector, : 8;  // kernel segment selector (and 8 excess zero bits)
     uint8_t flags;
     uint16_t base_high;     // upper 16 bits of address to jump to
-} __attribute__((packed));
-
-// Task selector segment descriptor
-struct tss_entry
-{
-    uint32_t prev_tss;   // previous TSS - if using hardware task switching,
-                         //     this acts as a linked list
-    uint32_t esp0;       // stack pointer to load when changing to kernel mode
-    uint32_t ss0;        // stack segment to load when changing to kernel mode
-
-    // Unless implementing hardware task switching, the rest of this structure
-    // is unused
-    uint32_t esp1;
-    uint32_t ss1;
-    uint32_t esp2;
-    uint32_t ss2;
-    uint32_t cr3;
-    uint32_t eip;
-    uint32_t eflags;
-    uint32_t eax;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t ebx;
-    uint32_t esp;
-    uint32_t ebp;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t es;
-    uint32_t cs;
-    uint32_t ss;
-    uint32_t ds;
-    uint32_t fs;
-    uint32_t gs;
-    uint32_t ldt;
-    uint16_t trap;
-    uint16_t iomap_base;
-} __attribute__((packed));
+} PACKED;
 
 // Limit and base structure, used for both GDT and IDT work
 struct limit_and_base
 {
     uint16_t limit;
     uint32_t base;
-} __attribute__((packed));
+} PACKED;
 
 #define NUM_GDT_ENTRIES 6
 
 static struct gdt_entry gdt_entries[NUM_GDT_ENTRIES];
 static struct idt_entry idt_entries[INT_NUM_INTERRUPTS];
-static struct tss_entry tss;
+//static struct tss_entry tss;
 
 static void gdt_set_gate(uint8_t num,
                          uint32_t base,
@@ -101,7 +66,8 @@ void gdt_init(void)
     gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF); // user mode data segment
 
     // Set up TSS
-    gdt_set_gate(5, (uint32_t)&tss, sizeof(struct tss_entry), 0x89, 0x40);
+    extern struct tss_entry kernel_tss;
+    gdt_set_gate(5, (uint32_t)&kernel_tss, sizeof(kernel_tss), 0x89, 0x40);
 
     write_gdt((uint32_t)&gdt_ptr);
 
@@ -176,24 +142,6 @@ void idt_init(void)
     write_idt((uint32_t)&idt_ptr);
 
     printf("[cpu] initialized IDT (%d entries)\n", INT_NUM_INTERRUPTS);
-}
-
-void tss_init(void)
-{
-    memset(&tss, 0, sizeof(struct tss_entry));
-
-    // Set the default kernel stack pointer
-    // NOTE: once this is no longer the bootstrap stack, change this!
-    extern uint8_t g_stack_top;
-    tss.esp0 = (uint32_t)&g_stack_top;
-
-    // Set the default kernel stack segment
-    tss.ss0 = 0x10;
-
-    // Load the TSS using the offset in the GDT (0x28), plus some control bits
-    write_tss(0x2B);
-
-    printf("[cpu] initialized task register\n");
 }
 
 static void gdt_set_gate(uint8_t num,

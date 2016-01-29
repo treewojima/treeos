@@ -3,3 +3,7 @@ klibc/include
 libk/include
 kernel/arch/i386
 kernel/arch/i386/mm
+kernel/include/arch/i386
+kernel/include/arch/i386/proc
+kernel/include/kernel
+kernel/arch/i386/proc

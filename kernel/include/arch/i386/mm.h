@@ -1,7 +1,8 @@
 #ifndef __TREEOS_KERNEL_ARCH_MM_H__
 #define __TREEOS_KERNEL_ARCH_MM_H__
 
-#include "defines.h"
+#include <defines.h>
+
 #ifndef TREEOS_I386
 #   error included i386-specific header (mm.h) in non-i386 build
 #endif
