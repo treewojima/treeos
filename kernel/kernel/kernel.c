@@ -87,7 +87,7 @@ void kmain(void)
     int_enable();
     test_map_page();
 
-    panic("end of kmain");
+    //panic("end of kmain");
 }
 
 void test_map_page(void)

@@ -42,8 +42,14 @@ g_stack_bottom:
 .global g_stack_top
 g_stack_top:
 
-g_msg_panic:
+msg_panic:
     .asciz "PANIC!"
+
+msg_kmain_returned:
+    .asciz "unexpected return from kmain()"
+
+msg_function_name:
+    .asciz "higher_half_start"
 
 .section .text
 .code32
@@ -100,10 +106,16 @@ higher_half_start:
 
     # Call the main kernel function
     call kmain
-    jmp  the_end2
+
+    # kmain shouldn't have returned...
+    pushl $msg_kmain_returned
+    pushl $112
+    pushl $msg_function_name
+    call _panic
+    jmp the_end2
 
 the_end:
-    movl $g_msg_panic, %eax
+    movl $msg_panic, %eax
     call boot_print_msg
 the_end2:
     cli

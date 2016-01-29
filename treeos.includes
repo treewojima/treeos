@@ -1,3 +1,5 @@
 kernel/include
 klibc/include
 libk/include
+kernel/arch/i386
+kernel/arch/i386/mm

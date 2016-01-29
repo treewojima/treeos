@@ -22,6 +22,8 @@
 
 #define int_enabled() (read_eflags() & (1 << 9))
 
+void int_set_raw_mask(uint16_t mask);
+
 #endif
 
 #endif

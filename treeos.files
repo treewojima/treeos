@@ -38,7 +38,6 @@ klibc/stdio/vsprintf.c
 klibc/stdio/sprintf.c
 kernel/include/kernel/timer.h
 kernel/arch/i386/timer.c
-kernel/arch/i386/ioport.c
 Makefile
 run.sh
 debug.sh
@@ -85,3 +84,18 @@ kernel/kernel/util/bitmap.c
 kernel/include/arch/i386/const.h
 kernel/include/kernel/const.h
 kernel/arch/i386/isr.h
+kernel/arch/i386/ioport.S
+kernel/arch/i386/ioport.c
+kernel/arch/i386/mm/mm.c
+kernel/arch/i386/mm/page.c
+kernel/arch/i386/mm/placement_heap.c
+kernel/arch/i386/cpu.c
+kernel/arch/i386/interrupt.c
+kernel/arch/i386/ioport.c
+kernel/arch/i386/isr.h
+kernel/arch/i386/kbd.c
+kernel/arch/i386/reboot.c
+kernel/arch/i386/serio.c
+kernel/arch/i386/timer.c
+kernel/arch/i386/tty.c
+kernel/arch/i386/ioport_asm.S

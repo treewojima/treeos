@@ -44,9 +44,9 @@ int_handler_t *g_int_handler_table[INT_NUM_INTERRUPTS];
 static int_handler_t *irq_handler_table[NUM_IRQS];
 
 // IRQ mask
-uint16_t irq_mask;
-#define IRQ_MASK_MASTER(m) (uint8_t)((m) & 0xFF)
-#define IRQ_MASK_SLAVE(m)  (uint8_t)(((m) >> 8) & 0xFF)
+static uint16_t irq_mask;
+#define IRQ_MASK_MASTER(m) ((uint8_t)((m) & 0xFF))
+#define IRQ_MASK_SLAVE(m)  ((uint8_t)(((m) >> 8) & 0xFF))
 
 // Static prototypes
 static void remap_pic(void);
@@ -142,29 +142,16 @@ bool int_mask_irq(uint8_t irq)
     uint8_t real_irq = 1 << irq;
 
     // Check if the IRQ is already masked
-    bool masked = false;
     if (irq_mask & real_irq)
     {
         char buf[40];
         sprintf(buf, "masking already masked IRQ %u\n", irq);
         worry(buf);
-        masked = true;
-    }
-    else
-    {
-        irq_mask |= real_irq;
-
-        if (irq < 8)
-        {
-            ioport_outb(PIC_MASTER_DATA, IRQ_MASK_MASTER(irq_mask));
-        }
-        else
-        {
-            ioport_outb(PIC_SLAVE_DATA, IRQ_MASK_SLAVE(irq_mask));
-        }
+        return false;
     }
 
-    return masked;
+    int_set_raw_mask(irq_mask | real_irq);
+    return true;
 }
 
 bool int_unmask_irq(uint8_t irq)
@@ -175,29 +162,36 @@ bool int_unmask_irq(uint8_t irq)
     uint8_t real_irq = 1 << irq;
 
     // Check if the IRQ is already unmasked
-    bool unmasked = false;
     if (!(irq_mask & real_irq))
     {
         char buf[40];
         sprintf(buf, "masking already masked IRQ %u\n", irq);
         worry(buf);
-        unmasked = true;
+        return false;
     }
-    else
+
+    int_set_raw_mask(irq_mask & ~real_irq);
+    return true;
+}
+
+void int_set_raw_mask(uint16_t mask)
+{
+    if (irq_mask == mask) return;
+
+    uint8_t master_mask = IRQ_MASK_MASTER(mask);
+    uint8_t slave_mask = IRQ_MASK_SLAVE(mask);
+
+    if (master_mask != IRQ_MASK_MASTER(irq_mask))
     {
-        irq_mask &= ~real_irq;
-
-        if (irq < 8)
-        {
-            ioport_outb(PIC_MASTER_DATA, IRQ_MASK_MASTER(irq_mask));
-        }
-        else
-        {
-            ioport_outb(PIC_SLAVE_DATA, IRQ_MASK_SLAVE(irq_mask));
-        }
+        ioport_outb(PIC_MASTER_DATA, master_mask);
     }
 
-    return unmasked;
+    if (slave_mask != IRQ_MASK_SLAVE(irq_mask))
+    {
+        ioport_outb(PIC_SLAVE_DATA, slave_mask);
+    }
+
+    irq_mask = mask;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
