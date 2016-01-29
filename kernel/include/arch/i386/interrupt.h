@@ -20,7 +20,7 @@
 #define int_enable()  __asm__ __volatile__ ("sti")
 #define int_disable() __asm__ __volatile__ ("cli")
 
-#define int_enabled() (get_eflags() & (1 << 9))
+#define int_enabled() (read_eflags() & (1 << 9))
 
 #endif
 

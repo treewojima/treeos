@@ -7,9 +7,9 @@
 # Returns:
 #     void
 #
-.global load_gdt
-.type load_gdt, @function
-load_gdt:
+.global write_gdt
+.type write_gdt, @function
+write_gdt:
     pushl %ebp
     movl  %esp, %ebp
 
@@ -39,9 +39,9 @@ load_gdt:
 # Returns:
 #     void
 #
-.global load_idt
-.type load_idt, @function
-load_idt:
+.global write_idt
+.type write_idt, @function
+write_idt:
     pushl %ebp
     movl  %esp, %ebp
 
@@ -60,9 +60,9 @@ load_idt:
 # Returns:
 #     void
 #
-.global load_tss
-.type load_tss, @function
-load_tss:
+.global write_tss
+.type write_tss, @function
+write_tss:
     pushl %ebp
     movl  %esp, %ebp
 
@@ -84,51 +84,7 @@ load_tss:
 .global read_cr0
 .type read_cr0, @function
 read_cr0:
-    pushl %ebp
-    movl  %esp, %ebp
-
     movl %cr0, %eax
-
-    movl %ebp, %esp
-    popl %ebp
-    ret
-
-# Read the value of the cr2 register
-# Parameters:
-#     none
-#
-# Returns:
-#     uint32_t
-#
-.global read_cr2
-.type read_cr2, @function
-read_cr2:
-    pushl %ebp
-    movl  %esp, %ebp
-
-    movl %cr2, %eax
-
-    movl %ebp, %esp
-    popl %ebp
-    ret
-
-# Read the value of the cr3 register
-# Parameters:
-#     none
-#
-# Returns:
-#     uint32_t
-#
-.global read_cr3
-.type read_cr3, @function
-read_cr3:
-    pushl %ebp
-    movl  %esp, %ebp
-
-    movl %cr3, %eax
-
-    movl %ebp, %esp
-    popl %ebp
     ret
 
 # Write a value to the cr0 register
@@ -151,6 +107,32 @@ write_cr0:
     popl %ebp
     ret
 
+# Read the value of the cr2 register
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_cr2
+.type read_cr2, @function
+read_cr2:
+    movl %cr2, %eax
+    ret
+
+# Read the value of the cr3 register
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_cr3
+.type read_cr3, @function
+read_cr3:
+    movl %cr3, %eax
+    ret
+
 # Write a value to the cr3 register
 # Parameters:
 #     uint32_t - new value
@@ -171,6 +153,21 @@ write_cr3:
     popl %ebp
     ret
 
+# Read the value of the eflags register
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_eflags
+.type read_eflags, @function
+read_eflags:
+    pushfl
+    popl %eax
+    ret
+
+# Old debug code
 .global jump_usermode
 .type jump_usermode, @function
 .extern test_usermode

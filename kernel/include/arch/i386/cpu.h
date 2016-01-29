@@ -49,21 +49,25 @@ void idt_init(void);
 void tss_init(void);
 //void clear_bss(void);
 
-uint32_t get_eflags(void);
-
 char *strcat_registers(char *buf, const struct registers *const registers);
 
 /*
  * Functions implemented in assembly (src/arch/i386/cpu_asm.S)
  */
-extern void load_gdt(uint32_t gdt_ptr);
-extern void load_idt(uint32_t idt_ptr);
-extern void load_tss(uint16_t index);
-extern uint32_t read_cr0(void);
-extern uint32_t read_cr2(void);
-extern uint32_t read_cr3(void);
-extern void write_cr0(uint32_t value);
-extern void write_cr3(uint32_t value);
-extern void jump_usermode(void);
+void write_gdt(uint32_t gdt_ptr);
+void write_idt(uint32_t idt_ptr);
+void write_tss(uint16_t index);
+
+uint32_t read_cr0(void);
+void write_cr0(uint32_t value);
+
+uint32_t read_cr2(void);
+
+uint32_t read_cr3(void);
+void write_cr3(uint32_t value);
+
+uint32_t read_eflags(void);
+
+void jump_usermode(void);
 
 #endif

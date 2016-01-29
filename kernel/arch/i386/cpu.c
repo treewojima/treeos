@@ -103,7 +103,7 @@ void gdt_init(void)
     // Set up TSS
     gdt_set_gate(5, (uint32_t)&tss, sizeof(struct tss_entry), 0x89, 0x40);
 
-    load_gdt((uint32_t)&gdt_ptr);
+    write_gdt((uint32_t)&gdt_ptr);
 
     printf("[cpu] initialized GDT\n");
 }
@@ -173,7 +173,7 @@ void idt_init(void)
     idt_set_gate(48, (uint32_t)isr48, 0x08, 0x8E);
 
     // Finally, load/flush the IDT
-    load_idt((uint32_t)&idt_ptr);
+    write_idt((uint32_t)&idt_ptr);
 
     printf("[cpu] initialized IDT (%d entries)\n", INT_NUM_INTERRUPTS);
 }
@@ -191,7 +191,7 @@ void tss_init(void)
     tss.ss0 = 0x10;
 
     // Load the TSS using the offset in the GDT (0x28), plus some control bits
-    load_tss(0x2B);
+    write_tss(0x2B);
 
     printf("[cpu] initialized task register\n");
 }
@@ -224,13 +224,6 @@ static void idt_set_gate(uint8_t num,
     idt_entries[num].selector  = selector;
     // Uncomment the OR portion when user-mode functionality is enabled
     idt_entries[num].flags     = flags | 0x60;
-}
-
-uint32_t get_eflags(void)
-{
-    uint32_t eflags;
-    __asm__ __volatile__("pushfl; popl %0" : "=a"(eflags));
-    return eflags;
 }
 
 char *strcat_registers(char *buf, const struct registers *const registers)
