@@ -20,6 +20,8 @@ KERNEL_CSOURCES := $(shell find kernel -type f -name "*.c" -print)
 KERNEL_ASOURCES := $(shell find kernel -iname "crt?.S" -prune -o -type f -iname "*.S" -print)
 KLIBC_CSOURCES  := $(shell find klibc -type f -name "*.c" -print)
 KLIBC_ASOURCES  := $(shell find klibc -type f -iname "*.S" -print)
+ALL_CSOURCES    := $(KERNEL_CSOURCES) $(KLIBC_CSOURCES)
+ALL_ASOURCES    := $(KERNEL_ASOURCES) $(KLIBC_ASOURCES)
 
 CRTI_OBJ     := kernel/arch/i386/crti.o
 CRTBEGIN_OBJ := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -print-file-name=crtbegin.o)
@@ -30,7 +32,8 @@ KERNEL_OBJECTS := $(patsubst %.c, %.o, $(KERNEL_CSOURCES)) \
                   $(patsubst %.S, %.o, $(KERNEL_ASOURCES))
 KLIBC_OBJECTS  := $(patsubst %.c, %.o, $(KLIBC_CSOURCES)) \
                   $(patsubst %.S, %.o, $(KLIBC_ASOURCES))
-#DEPFILES := $(patsubst %.c, %.dep, $(CSOURCES))
+DEPFILES       := $(patsubst %.c, %.d, $(ALL_CSOURCES)) \
+				  $(patsubst %.S, %.d, $(ALL_ASOURCES))
 
 KLIBC_TARGET   := $(LIBDIR)/libklibc.a
 KERNEL_TARGET  := $(BOOTDIR)/kernel.elf
@@ -62,7 +65,7 @@ $(KERNEL_TARGET): $(KERNEL_OBJECTS) $(CRTI_OBJ) $(CRTN_OBJ)
 
 distclean: clean clean-iso
 
-clean: clean-kernel clean-libs
+clean: clean-kernel clean-libs clean-deps
 
 clean-kernel:
 	rm -f $(KERNEL_TARGET) $(KERNEL_OBJECTS) $(CRTI_OBJ) $(CRTN_OBJ)
@@ -72,18 +75,21 @@ clean-libs:
 	rm -f $(KLIBC_TARGET) $(KLIBC_OBJECTS)
 	@find klibc -type f -iname "*~" -exec rm -f {} \;
 
+clean-deps:
+	rm -f $(DEPFILES)
+
 clean-iso:
 	rm -f $(ISO_TARGET)
 
-#i-include $(DEPFILES)
+-include $(DEPFILES)
 
 %.o: %.c
 	@echo "(CC) $<"
-	@$(CC) -o $@ $(CFLAGS) $<
+	@$(CC) -o $@ $(CFLAGS) -MMD -MP $<
 
 %.o: %.S
 	@echo "(AS) $<"
-	@$(CC) -o $@ $(ASFLAGS) $<
+	@$(CC) -o $@ $(ASFLAGS) -MMD -MP $<
 
 install-grub:
 	@echo ">> Installing GRUB"

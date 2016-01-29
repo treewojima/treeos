@@ -1,6 +1,7 @@
 sysroot
 build
 *.o
+*.d
 .*.swp
 ~*
 *.autosave
