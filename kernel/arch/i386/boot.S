@@ -29,9 +29,9 @@ g_kernel_page_dir:
 .global g_kernel_page_table
 g_kernel_page_table:
     .space 0x1000, 0x00
-.global g_kernel_low_page_table
-g_kernel_low_page_table:
-    .space 0x1000, 0x00
+#.global g_kernel_low_page_table
+#g_kernel_low_page_table:
+#    .space 0x1000, 0x00
 
 # The kernel bootstrap stack
 #.section .bootstrap_stack, "aw", @nobits
@@ -157,11 +157,11 @@ init_bootstrap_paging:
     movl  $g_kernel_page_dir, %eax
     subl  $KERNEL_HIGH_VMA  , %eax
 
-    movl $g_kernel_low_page_table, %ebx
-    subl $KERNEL_HIGH_VMA        , %ebx
-
-    orl  $0x1, %ebx
-    movl %ebx, (%eax)
+    #movl $g_kernel_low_page_table, %ebx
+    movl $g_kernel_page_table, %ebx
+    subl $KERNEL_HIGH_VMA    , %ebx
+    orl  $0x1                , %ebx
+    movl %ebx                , (%eax)
 
     pushl %eax
     movl  $KERNEL_HIGH_VMA, %eax
@@ -189,7 +189,6 @@ init_bootstrap_paging:
 
     movl $KERNEL_BOOT_VMA, %ecx
     movl $g_kernel_end   , %eax
-    #movl $0x400000       , %eax
     subl $KERNEL_HIGH_VMA, %eax
 
     map_kernel:

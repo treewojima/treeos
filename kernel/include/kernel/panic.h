@@ -1,7 +1,11 @@
 #ifndef __TREEOS_KERNEL_PANIC_H__
 #define __TREEOS_KERNEL_PANIC_H__
 
-#include "defines.h"
+#include <defines.h>
+
+#ifdef TREEOS_EXPORT_ASM
+#   error this include is not meant to be used for assembly source files
+#endif
 
 #define MAX_PANIC_BUF 512
 

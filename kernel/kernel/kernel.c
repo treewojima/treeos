@@ -1,14 +1,13 @@
 #include <arch/i386/cpu.h>
 #include <arch/i386/serio.h>
 #include <kernel/interrupt.h>
-#include <kernel/kbd.h>
-#include <kernel/mm.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
-#include <kernel/proc.h>
-#include <kernel/reboot.h>
+#include <kernel/pmm.h>
 #include <kernel/timer.h>
 #include <kernel/tty.h>
+#include <kernel/vmm/addr.h>
+#include <kernel/vmm/heap.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,7 +57,7 @@ void kinit(uint32_t boot_magic,
     tty_init();
 
     // Initialize the kernel placement heap
-    mm_init_placement_heap();
+    kernel_heap_init();
 
     //for (;;) ;
 }
@@ -83,12 +82,12 @@ void kmain(void)
     timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
     //kbd_init();
 
-    // Initialize paging and the proper kernel heap
-    mm_init();
+    // Initialize paging
+    paging_init();
     int_enable();
     test_map_page();
 
-    //panic("end of kmain");
+    panic("end of kmain");
 }
 
 void test_map_page(void)
@@ -96,20 +95,20 @@ void test_map_page(void)
     printf("testing map_page\n");
 
     struct page_table_entry pte = { 0 };
-    PANIC_IF(!mm_alloc_page(&pte), "out of memory");
+    PANIC_IF(!page_alloc(&pte), "out of memory");
 
     const uint32_t vaddr = 768 * 1024 * 1024;
 
     uint32_t paddr = pte.address << 12;
-    mm_map_page(paddr, vaddr, true, true, true);
+    page_map(paddr, vaddr, true, true, true);
 
     int *test = (int *)vaddr;
     //*test = 69;
     printf("*test      = %d\n", *test);
     printf("test_vaddr = %p\n", test);
-    printf("test_paddr = %p\n", mm_get_physaddr(test));
+    printf("test_paddr = %p\n", virt_to_phys(test));
 
-    mm_free_page(&pte);
+    page_free(&pte);
 
     printf("done testing map_page\n");
 }

@@ -1,27 +1,26 @@
 #include <kernel/util/bitmap.h>
 
 #include <kernel/debug.h>
-#include <kernel/mm.h>
+#include <kernel/vmm/heap.h>
 #include <string.h>
 
 #define MUST_FREE (1 << 0)
 
-struct bitmap *bitmap_alloc(unsigned num_bits)
-{
+struct bitmap *bitmap_alloc(struct bitmap *bitmap, unsigned num_bits)
+{   
     unsigned num_words = num_bits / BITS_PER_WORD;
     if (num_bits % BITS_PER_WORD) num_words++;
 
 #ifdef PLACEHOLDER_FOR_WORKING_MALLOC
-    struct bitmap *bitmap = malloc(sizeof(struct bitmap));
+    if (!bitmap) bitmap = malloc(sizeof(struct bitmap));
     memset(bitmap, 0, sizeof(*bitmap));
     bitmap->bits = malloc(sizeof(*bitmap->bits) * num_words);
     memset(bitmap->bits, 0, sizeof(*bitmap->bits) * num_words);
     bitmap->flags |= MUST_FREE;
 #else
-    struct bitmap *bitmap = mm_placement_alloc(sizeof(struct bitmap), true, false);
-    bitmap->bits = mm_placement_alloc(sizeof(*bitmap->bits) * num_words, true, false);
+    if (!bitmap) bitmap = kcalloc(1, sizeof(struct bitmap));
+    bitmap->bits = kcalloc(num_words, sizeof(*bitmap->bits));
 #endif
-
     bitmap->word_count = num_words;
 
     return bitmap;
@@ -43,6 +42,12 @@ void bitmap_free(struct bitmap *bitmap)
     free(bitmap);
 }
 #endif
+
+/*unsigned bitmap_first_free_block(struct bitmap *bitmap, unsigned size)
+{
+    // The block to test
+    unsigned test_block =
+}*/
 
 unsigned bitmap_first_free(struct bitmap *bitmap)
 {

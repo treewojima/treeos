@@ -1,10 +1,10 @@
-#ifndef __TREEOS_KERNEL_ARCH_MM_H__
-#define __TREEOS_KERNEL_ARCH_MM_H__
+#ifndef __TREEOS_KERNEL_ARCH_MM_PAGING_H__
+#define __TREEOS_KERNEL_ARCH_MM_PAGING_H__
 
 #include <defines.h>
 
 #ifndef TREEOS_I386
-#   error included i386-specific header (mm.h) in non-i386 build
+#   error included i386-specific header (pmm/paging.h) in non-i386 build
 #endif
 
 // PAGE_SIZE = 4096
@@ -45,31 +45,21 @@ struct page_table_entry // aka a page
     uint32_t address        : 20; // physical address of page, right-shifted by 12
 } PACKED;
 
-// Memory map and full paging initialization (arch/i386/mm/mm.c)
-void mm_init(void);
+// Page allocation
+struct page_table_entry *page_alloc(struct page_table_entry *frame);
+void page_free(struct page_table_entry *frame);
 
-// Address translation (arch/i386/mm/mm.c)
-void *mm_get_physaddr(void *virtualaddr);
+// Page physical->virtual mapping
+void page_map(uint32_t physaddr,
+              uint32_t virtualaddr,
+              bool rw,
+              bool user,
+              bool flush);
 
-// Page manipulation (arch/i386/mm/page.c)
-struct page_table_entry *mm_alloc_page(struct page_table_entry *frame);
-void mm_map_page(uint32_t physaddr,
-                 uint32_t virtualaddr,
-                 bool rw,
-                 bool user,
-                 bool flush_tlb);
-void mm_free_page(struct page_table_entry *frame);
-uint32_t mm_init_page_bitmap(uint32_t mem_size);
-void mm_init_region(uint32_t base, uint32_t size);
-void mm_deinit_region(uint32_t base, uint32_t size);
-
-// Early placement heap functions (arch/i386/mm/placement_heap.c)
-void mm_init_placement_heap(void);
-void *mm_placement_alloc(uint32_t size, bool zero, bool align);
-
-// TLB flushing - implemented in assembly (arch/i386/mm/mm_asm.S)
-extern void mm_flush_tlb(uint32_t virtualaddr);
-extern void mm_flush_tlb_full(void);
+// Physical page bitmap and region manipulation
+uint32_t paging_init_bitmap(uint32_t mem_size);
+void paging_init_region(uint32_t base, uint32_t size);
+void paging_deinit_region(uint32_t base, uint32_t size);
 
 #endif
 

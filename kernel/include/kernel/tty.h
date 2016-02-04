@@ -1,7 +1,11 @@
 #ifndef __TREEOS_KERNEL_TTY_H__
 #define __TREEOS_KERNEL_TTY_H__
 
-#include "defines.h"
+#include <defines.h>
+
+#ifdef TREEOS_EXPORT_ASM
+#   error this include is not meant to be used for assembly source files
+#endif
 
 #include <stdbool.h>
 #include <stddef.h>

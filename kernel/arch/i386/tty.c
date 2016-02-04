@@ -1,7 +1,7 @@
+#include <kernel/tty.h>
+
 #include <arch/i386/ioport.h>
 #include <kernel/debug.h>
-#include <kernel/mm.h>
-#include <kernel/tty.h>
 #include <stdbool.h>
 
 // Maximum screen size

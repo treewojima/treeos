@@ -1,17 +1,23 @@
-#include <kernel/mm.h>
+#include <arch/i386/pmm/pmm.h>
 
 #include <arch/i386/cpu.h>
+#include <arch/i386/pmm/paging.h>
 #include <kernel/interrupt.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
 #include <stdio.h>
 #include <string.h>
 
+#ifndef USE_BOOTSTRAP_PAGING
 //extern uint32_t g_placement_address;
 extern uint8_t KERNEL_BOOT_VMA, KERNEL_HIGH_VMA;
 
-static struct page_dir_entry kernel_pde[1024] __attribute__ ((aligned (PAGE_SIZE)));
-static struct page_table_entry kernel_pte[1024] __attribute__ ((aligned (PAGE_SIZE)));
+static struct page_dir_entry kernel_pde[1024] ALIGNED(PAGE_SIZE);
+static struct page_table_entry kernel_pte[1024] ALIGNED(PAGE_SIZE);
+
+// Re-initialize paging (not used right now
+static void reinit_paging(void);
+#endif
 
 // Page fault handler
 static void page_fault_int_handler(struct registers *registers);
@@ -27,7 +33,7 @@ static void page_fault_int_handler(struct registers *registers);
  * Returns:
  *     void
  */
-void mm_init(void)
+void paging_init(void)
 {
     // Make sure we can use GRUB's memory information
     extern const struct multiboot_info g_multiboot_info;
@@ -42,9 +48,7 @@ void mm_init(void)
     printf("mem_total = %d KiB\n", mbi->mem_lower + mbi->mem_upper);
 
     // Initialize physical memory map
-    uint32_t bytes_allocated =
-            mm_init_page_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
-    printf("page_bitmap_bytes_allocated = %u\n", bytes_allocated);
+    paging_init_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
 
     // Loop through the memory map that GRUB provides from the BIOS
     struct multiboot_memory_map *mmap =
@@ -59,7 +63,7 @@ void mm_init(void)
         // Only consider the region if it's marked as available
         if (mmap->type == 1)
         {
-            mm_init_region(mmap->base_addr_low, mmap->length_low);
+            paging_init_region(mmap->base_addr_low, mmap->length_low);
         }
 
         mmap = (struct multiboot_memory_map *)
@@ -68,20 +72,49 @@ void mm_init(void)
 
     // Make sure the kernel's region of memory isn't marked as free
     // NOTE: Right now this just blindly allocates the first 4 MiB of memory
-    mm_deinit_region(0, 4096 * 1024);
+    paging_deinit_region(0, 4096 * 1024);
 
-#if 0
-    int_enable();
-    printf("dumping frame bitmap in ");
-    for (int i = 5; i > 0; i--)
-    {
-        printf("%d... ", i);
-        timer_sleep(100);
-    }
-    dump_frame_bitmap();
-    halt();
+#ifndef USE_BOOTSTRAP_PAGING
+    reinit_paging();
 #endif
 
+    // Set up our page fault handler
+    int_register_handler(14, page_fault_int_handler);
+
+    printf("[mm] paging enabled (\n");
+}
+
+#if 0
+void dump_pgdir(void)
+{
+    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
+    for (int i = 0; i < 1024; i++)
+    {
+        if (!pde[i].present) continue;
+
+        pde[i].a
+        for (int j = 0; j < 1024; j++)
+        {
+
+        }
+    }
+}
+#endif
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *  STATIC FUNCTIONS                                                         *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+static void page_fault_int_handler(struct registers *registers)
+{
+    char msg_buf[MAX_PANIC_BUF];
+    sprintf(msg_buf, "page fault at address %p", read_cr2());
+    panic_r(msg_buf, registers);
+}
+
+#ifndef USE_BOOTSTRAP_PAGING
+static void reinit_paging(void)
+{
     // Identity map the first 4 MiB of physical memory
     //struct page_table_entry *pte = mm_placement_alloc(sizeof(*pte) * 1024, true);
     struct page_table_entry *pte = kernel_pte;
@@ -146,70 +179,5 @@ void mm_init(void)
     mm_flush_tlb_full();
     write_cr3((uint32_t)mm_get_physaddr(pde));
     write_cr0(read_cr0() | 0x80000000);
-
-    // Set up our page fault handler
-    int_register_handler(14, page_fault_int_handler);
-
-    printf("[mm] paging enabled\n");
-}
-
-void *mm_get_physaddr(void *virtualaddr)
-{
-    uint32_t pgdir_index = (uint32_t)virtualaddr >> 22;
-    uint32_t pgtbl_index = (uint32_t)virtualaddr >> 12 & 0x03FF;
-
-    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
-    if (!pde[pgdir_index].present)
-    {
-        char msg[128];
-        sprintf(msg,
-                "virtual address %x references invalid page directory entry %u",
-                (uint32_t)virtualaddr,
-                pgdir_index);
-        panic(msg);
-    }
-
-    struct page_table_entry *pte =
-            ((struct page_table_entry *)0xFFC00000) + (0x400 * pgdir_index);
-    if (!pte[pgtbl_index].present)
-    {
-        char msg[128];
-        sprintf(msg,
-                "virtual address %x references invalid page table entry %u in page directory %u",
-                (uint32_t)virtualaddr,
-                pgtbl_index,
-                pgdir_index);
-        panic(msg);
-    }
-
-    uint32_t *pte_int = (uint32_t *)&pte[pgtbl_index];
-    return (void *)((*pte_int & ~0xFFF) + ((uint32_t)virtualaddr & 0xFFF));
-}
-
-#if 0
-void dump_pgdir(void)
-{
-    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
-    for (int i = 0; i < 1024; i++)
-    {
-        if (!pde[i].present) continue;
-
-        pde[i].a
-        for (int j = 0; j < 1024; j++)
-        {
-
-        }
-    }
 }
 #endif
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *  STATIC FUNCTIONS                                                         *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-static void page_fault_int_handler(struct registers *registers)
-{
-    char msg_buf[MAX_PANIC_BUF];
-    sprintf(msg_buf, "page fault at address %p", read_cr2());
-    panic_r(msg_buf, registers);
-}

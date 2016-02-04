@@ -1,5 +1,5 @@
-#ifndef __TREEOS_KERNEL_PROC_H__
-#define __TREEOS_KERNEL_PROC_H__
+#ifndef __TREEOS_KERNEL_VMM_ADDR_H__
+#define __TREEOS_KERNEL_VMM_ADDR_H__
 
 #include <defines.h>
 
@@ -8,7 +8,7 @@
 #endif
 
 #ifdef TREEOS_I386
-#   include <arch/i386/proc/task.h>
+#   include <arch/i386/vmm/addr.h>
 #endif
 
 #endif

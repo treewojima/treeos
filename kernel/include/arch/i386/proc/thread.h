@@ -12,7 +12,7 @@
 #endif
 
 #include <arch/i386/cpu.h>
-#include <kernel/mm.h>
+#include <arch/i386/pmm/paging.h>
 #include <stdint.h>
 
 // TODO: a lot
@@ -24,6 +24,6 @@ struct kthread
     struct kthread *next;
 } PACKED;
 
-void kthread_create()
+//void kthread_create()
 
 #endif

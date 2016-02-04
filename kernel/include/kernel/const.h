@@ -5,6 +5,10 @@
 
 #include <defines.h>
 
+#ifdef TREEOS_EXPORT_ASM
+#   error this include is not meant to be used for assembly source files
+#endif
+
 #ifdef TREEOS_I386
 #   include <arch/i386/const.h>
 #endif
