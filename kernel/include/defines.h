@@ -18,6 +18,7 @@
 #   define ALIGNED(n) __attribute__((aligned((n))))
 #   define PACKED     __attribute__((packed))
 #   define NORETURN   __attribute__((noreturn))
+#   define UNUSED     __attribute__((unused))
 #   ifdef CHECK_FORMAT_STRING
 #      define FORMAT(str, vararg) \
            __attribute__((format(printf, (str), (vararg))))
@@ -29,6 +30,7 @@
 #endif
 
 //#define KBD_DEBUG_KEYPRESSES
+//#define DEBUG_MALLOC
 
 #endif
 

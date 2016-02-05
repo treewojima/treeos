@@ -2,6 +2,8 @@
 #include <kernel/reboot.h>
 #include <kernel/tty.h>
 
+extern void liballoc_dump(void);
+
 void reboot(void)
 {
     tty_puts_color("rebooting", TTY_COLOR_PANIC, false);
@@ -20,6 +22,8 @@ void reboot(void)
 void halt(void)
 {
     tty_puts_color("halted", TTY_COLOR_PANIC, false);
+
+    liballoc_dump();
 
     int_set_raw_mask(0xFFFF);
     int_disable();

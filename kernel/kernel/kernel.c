@@ -10,9 +10,9 @@
 #include <kernel/vmm/heap.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
-static void test_map_page(void);
+#include "kernel_test.h"
 
 /* Kernel C-code entry point
  * Parameters:
@@ -27,28 +27,13 @@ void kinit(uint32_t boot_magic,
 {
     // Panic if either the Multiboot magic number is wrong, or if there's no
     // Multiboot info record (this is done after
-    PANIC_IF(boot_magic != MB_BOOT_MAGIC,
+    PANIC_IF(boot_magic != MULTIBOOT_BOOTLOADER_MAGIC,
              "kinit not called with correct multiboot magic");
     PANIC_IF(mbi == NULL,
              "NULL multiboot info record passed to kinit");
 
-    // Update various addresses in the struct to reflect their virtual,
-    // higher-half counterparts
-#if 0
-    extern uint8_t KERNEL_HIGH_VMA;
-    uint32_t offset = (uint32_t)&KERNEL_HIGH_VMA;
-    mbi->boot_loader_name += offset;
-    mbi->cmdline += offset;
-    mbi->mmap_addr += offset;
-    mbi->mods_addr += (mbi->mods_addr ? offset : 0);
-    mbi->syms.elf.addr += offset; // updates syms.aout as well
-    mbi->vbe_control_info += offset;
-    mbi->vbe_mode_info += offset;
-#endif
-
     // Copy the Multiboot info struct so it doesn't get overwritten
     // in memory later
-    // TODO: do this for Multiboot modules as well!
     extern const struct multiboot_info g_multiboot_info;
     memcpy((struct multiboot_info *)&g_multiboot_info, mbi, sizeof(*mbi));
 
@@ -58,8 +43,6 @@ void kinit(uint32_t boot_magic,
 
     // Initialize the kernel placement heap
     kernel_heap_init();
-
-    //for (;;) ;
 }
 
 /* Kernel C-code main function, called once global constructors/initializers
@@ -82,33 +65,15 @@ void kmain(void)
     timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
     //kbd_init();
 
-    // Initialize paging
-    paging_init();
+    // Initialize physical and virtual memory
+    pmm_init();
     int_enable();
+
+#ifdef TEST
     test_map_page();
+    test_malloc();
+#endif
+    test_usermode();
 
     panic("end of kmain");
-}
-
-void test_map_page(void)
-{
-    printf("testing map_page\n");
-
-    struct page_table_entry pte = { 0 };
-    PANIC_IF(!page_alloc(&pte), "out of memory");
-
-    const uint32_t vaddr = 768 * 1024 * 1024;
-
-    uint32_t paddr = pte.address << 12;
-    page_map(paddr, vaddr, true, true, true);
-
-    int *test = (int *)vaddr;
-    //*test = 69;
-    printf("*test      = %d\n", *test);
-    printf("test_vaddr = %p\n", test);
-    printf("test_paddr = %p\n", virt_to_phys(test));
-
-    page_free(&pte);
-
-    printf("done testing map_page\n");
 }

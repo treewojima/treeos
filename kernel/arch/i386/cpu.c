@@ -7,6 +7,30 @@
 #include "isr.h"
 
 // Entry in the global descriptor table
+struct new_gdt_entry
+{
+    uint16_t limit_low;
+    uint32_t base_low     : 24;
+
+    // Attribute byte
+    bool     accessed     : 1;
+    bool     rw           : 1;
+    bool     conform      : 1;
+    bool     code         : 1;
+    bool     always_true  : 1;
+    uint8_t  dpl          : 2;
+    bool     present      : 1;
+
+    // Granularity byte
+    uint8_t  limit_high   : 4;
+    bool     available    : 1;
+    bool     always_false : 1;
+    bool     big          : 1;
+    bool     granularity  : 1;
+
+    uint8_t  base_high;
+} PACKED;
+
 struct gdt_entry
 {
     uint16_t limit_low;   // lower 16 bits of limit
@@ -198,10 +222,4 @@ char *strcat_registers(char *buf, const struct registers *const registers)
                    registers->esp, registers->ss);
 
     return buf;
-}
-
-void test_usermode(void)
-{
-    puts("hello, ring 3!");
-    for (;;);
 }

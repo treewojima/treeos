@@ -11,6 +11,8 @@
 #define PAGE_SIZE_SHIFT 12
 #define PAGE_SIZE       (1 << PAGE_SIZE_SHIFT)
 
+#define PAGE_ALIGNED(addr) (!((uint32_t)(addr) & 0xFFF))
+
 #ifndef TREEOS_EXPORT_ASM
 
 #include <stdbool.h>
@@ -53,8 +55,8 @@ void page_free(struct page_table_entry *frame);
 void page_map(uint32_t physaddr,
               uint32_t virtualaddr,
               bool rw,
-              bool user,
-              bool flush);
+              bool user);
+void page_unmap(uint32_t virtualaddr);
 
 // Physical page bitmap and region manipulation
 uint32_t paging_init_bitmap(uint32_t mem_size);

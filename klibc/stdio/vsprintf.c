@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define BUF_LEN 256
+#define BUF_LEN 512
 
 static const char *ltoa(int32_t value, char *buf);
 static const char *ultoa(uint32_t value, char *buf);
@@ -40,6 +40,7 @@ int vsprintf(char *str, const char *format, va_list args)
                 break;
 
             case 'd':
+            case 'i':
                 {
                     memset(buf, 0, BUF_LEN);
                     ltoa(va_arg(args, int32_t), buf);

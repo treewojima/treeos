@@ -60,6 +60,6 @@ void write_cr3(uint32_t value);
 
 uint32_t read_eflags(void);
 
-void jump_usermode(void);
+void jump_usermode_c(void);
 
 #endif

@@ -66,9 +66,8 @@ write_tss:
     pushl %ebp
     movl  %esp, %ebp
 
-    #movw $0x2B, %ax
     movw 8(%ebp), %ax
-    ltr %ax
+    ltr  %ax
 
     movl %ebp, %esp
     popl %ebp
@@ -166,27 +165,3 @@ read_eflags:
     pushfl
     popl %eax
     ret
-
-# Old debug code
-.global jump_usermode
-.type jump_usermode, @function
-.extern test_usermode
-jump_usermode:
-    #pushl %ebp
-    #movl  %esp, %ebp
-
-    movw $0x23, %ax
-    movw %ax, %ds
-    movw %ax, %es
-    movw %ax, %fs
-    movw %ax, %gs
-
-    movl %esp, %eax
-    pushl $0x23
-    pushl %eax
-    pushfl
-    pushl $0x1B
-    pushl $test_usermode
-
-    #popl %ebp
-    iret

@@ -1,6 +1,7 @@
 #include <arch/i386/pmm/pmm.h>
 
 #include <arch/i386/cpu.h>
+#include <arch/i386/pmm/allocator.h>
 #include <arch/i386/pmm/paging.h>
 #include <kernel/interrupt.h>
 #include <kernel/multiboot.h>
@@ -19,69 +20,60 @@ static struct page_table_entry kernel_pte[1024] ALIGNED(PAGE_SIZE);
 static void reinit_paging(void);
 #endif
 
-// Page fault handler
+static void parse_memory_map(const struct multiboot_info *const mbi);
 static void page_fault_int_handler(struct registers *registers);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  PUBLIC FUNCTIONS                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Initialize paging and virtual memory
+/* Initialize physical memory manager
  * Parameters:
  *     none
  *
  * Returns:
  *     void
  */
-void paging_init(void)
+void pmm_init(void)
 {
     // Make sure we can use GRUB's memory information
     extern const struct multiboot_info g_multiboot_info;
     const struct multiboot_info *const mbi = &g_multiboot_info;
-    PANIC_IF(!((mbi->flags & MB_FLAG_MEM)),
+    PANIC_IF(!((mbi->flags & MULTIBOOT_INFO_MEMORY)),
              "Multiboot header does not include memory size information");
-    PANIC_IF(!((mbi->flags & MB_FLAG_MMAP)),
+    PANIC_IF(!((mbi->flags & MULTIBOOT_INFO_MEM_MAP)),
              "Multiboot header does not include memory map information");
 
-    printf("mem_lower = %d KiB\n", mbi->mem_lower);
-    printf("mem_upper = %d KiB\n", mbi->mem_upper);
-    printf("mem_total = %d KiB\n", mbi->mem_lower + mbi->mem_upper);
+    printf("mem_lower = %u KiB\n", mbi->mem_lower);
+    printf("mem_upper = %u KiB\n", mbi->mem_upper);
+    printf("mem_total = %u KiB\n", mbi->mem_lower + mbi->mem_upper);
 
     // Initialize physical memory map
     paging_init_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
 
     // Loop through the memory map that GRUB provides from the BIOS
-    struct multiboot_memory_map *mmap =
-            (struct multiboot_memory_map *)mbi->mmap_addr;
-    while ((uint32_t)mmap < mbi->mmap_addr + mbi->mmap_length)
-    {        
-        printf("memory region from %p to %p is %s\n",
-               mmap->base_addr_low,
-               mmap->base_addr_low + mmap->length_low,
-               mmap->type == 1 ? "available" : "reserved");
+    parse_memory_map(mbi);
 
-        // Only consider the region if it's marked as available
-        if (mmap->type == 1)
-        {
-            paging_init_region(mmap->base_addr_low, mmap->length_low);
-        }
+    // Make sure the kernel's location in physical memory isn't marked as free
+    extern uint8_t g_kernel_start, g_kernel_end, KERNEL_HIGH_VMA;
+    uint32_t real_kernel_start = (uint32_t)&g_kernel_start - (uint32_t)&KERNEL_HIGH_VMA;
+    uint32_t real_kernel_end = (uint32_t)&g_kernel_end - (uint32_t)&KERNEL_HIGH_VMA;
+    paging_deinit_region(real_kernel_start, real_kernel_end - real_kernel_start);
 
-        mmap = (struct multiboot_memory_map *)
-                ((uint32_t)mmap + mmap->size + sizeof(mmap->size));
-    }
-
-    // Make sure the kernel's region of memory isn't marked as free
     // NOTE: Right now this just blindly allocates the first 4 MiB of memory
-    paging_deinit_region(0, 4096 * 1024);
+    //paging_deinit_region(0, 4096 * 1024);
 
 #ifndef USE_BOOTSTRAP_PAGING
     reinit_paging();
 #endif
 
+    // Initialize the paging structure allocator
+    paging_allocator_init();
+
     // Set up our page fault handler
     int_register_handler(14, page_fault_int_handler);
 
-    printf("[mm] paging enabled (\n");
+    printf("[mm] paging enabled\n");
 }
 
 #if 0
@@ -104,6 +96,31 @@ void dump_pgdir(void)
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  STATIC FUNCTIONS                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+static void parse_memory_map(const struct multiboot_info *const mbi)
+{
+    struct multiboot_mmap_entry *mmap =
+            (struct multiboot_mmap_entry *)mbi->mmap_addr;
+    while ((uint32_t)mmap < mbi->mmap_addr + mbi->mmap_length)
+    {
+        uint32_t addr32 = (uint32_t)(mmap->addr & 0xFFFFFFFF);
+        uint32_t len32 = (uint32_t)(mmap->addr & 0xFFFFFFFF);
+
+        printf("memory region from %p to %p is %s\n",
+               addr32,
+               addr32 + len32,
+               mmap->type == MULTIBOOT_MEMORY_AVAILABLE ? "available" : "reserved");
+
+        // Only consider the region if it's marked as available
+        if (mmap->type == MULTIBOOT_MEMORY_AVAILABLE)
+        {
+            paging_init_region(addr32, len32);
+        }
+
+        mmap = (struct multiboot_mmap_entry *)
+                ((uint32_t)mmap + mmap->size + sizeof(mmap->size));
+    }
+}
 
 static void page_fault_int_handler(struct registers *registers)
 {

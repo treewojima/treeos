@@ -25,9 +25,6 @@ void timer_init(uint32_t frequency)
 {
     system_ticks = 0;
 
-    // Set up our timer callback on IRQ0
-    int_register_irq_handler(IRQ_PIT, &timer_callback);
-
     // The value sent to the PIT is the value to divide its input clock
     // (1193180 Hz) by, to get the required frequency.
     // NOTE: the divisor must fit into 16 bits.
@@ -43,6 +40,10 @@ void timer_init(uint32_t frequency)
     // Send divisor
     ioport_outb(0x40, l);
     ioport_outb(0x40, h);
+
+    // Set up our timer callback on IRQ0 and unmask the interrupt
+    int_register_irq_handler(IRQ_PIT, &timer_callback);
+    int_unmask_irq(IRQ_PIT);
 
     printf("[timer] initialized system timer to %d Hz\n", frequency);
 }

@@ -1,4 +1,6 @@
 #include "liballoc.h"
+
+#include <defines.h>
 #include <stdint.h>
 
 /**  Durand's Amazing Super Duper Memory functions.  */
@@ -9,6 +11,10 @@
 #define ALIGN_TYPE		char ///unsigned char[16] /// unsigned short
 #define ALIGN_INFO		sizeof(ALIGN_TYPE)*16	///< Alignment information is stored right before the pointer. This is the number of bytes of information stored there.
 
+#ifdef DEBUG_MALLOC
+#   define DEBUG
+#endif
+#define INFO
 
 #define USE_CASE1
 #define USE_CASE2
@@ -51,9 +57,10 @@
 
 #if defined DEBUG || defined INFO
 #include <stdio.h>
-#include <stdlib.h>
+//#include <stdlib.h>
 
-#define FLUSH()		fflush( stdout )
+//#define FLUSH()		fflush( stdout )
+#define FLUSH()
 
 #endif
 
@@ -140,19 +147,19 @@ static void* liballoc_memcpy(void* s1, const void* s2, size_t n)
  
 
 #if defined DEBUG || defined INFO
-static void liballoc_dump()
+void liballoc_dump()
 {
 #ifdef DEBUG
 	struct liballoc_major *maj = l_memRoot;
 	struct liballoc_minor *min = NULL;
 #endif
 
-	printf( "liballoc: ------ Memory data ---------------\n");
-	printf( "liballoc: System memory allocated: %i bytes\n", l_allocated );
-	printf( "liballoc: Memory in used (malloc'ed): %i bytes\n", l_inuse );
-	printf( "liballoc: Warning count: %i\n", l_warningCount );
-	printf( "liballoc: Error count: %i\n", l_errorCount );
-	printf( "liballoc: Possible overruns: %i\n", l_possibleOverruns );
+    printf( "\nliballoc: ------ Memory data ---------------\n" );
+    printf( "liballoc: System memory allocated: %i bytes\n", l_allocated );
+    printf( "liballoc: Memory in used (malloc'ed): %i bytes\n", l_inuse );
+    printf( "liballoc: Warning count: %i\n", l_warningCount );
+    printf( "liballoc: Error count: %i\n", l_errorCount );
+    printf( "liballoc: Possible overruns: %i\n", l_possibleOverruns );
 
 #ifdef DEBUG
 		while ( maj != NULL )
@@ -279,7 +286,7 @@ void *PREFIX(malloc)(size_t req_size)
 		#ifdef DEBUG
 		printf( "liballoc: initialization of liballoc " VERSION "\n" );
 		#endif
-		atexit( liballoc_dump );
+        //atexit( liballoc_dump );
 		FLUSH();
 		#endif
 			

@@ -13,3 +13,6 @@ kernel/kernel
 kernel/arch/i386
 kernel/arch/i386/vmm
 kernel/arch/i386/proc
+kernel/include/kernel/proc
+kernel/include/arch/i386/proc
+kernel/kernel/proc

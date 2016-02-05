@@ -1,32 +1,25 @@
 #include <kernel/util/bitmap.h>
 
 #include <kernel/debug.h>
-#include <kernel/vmm/heap.h>
+#include <stdlib.h>
 #include <string.h>
-
-#define MUST_FREE (1 << 0)
 
 struct bitmap *bitmap_alloc(struct bitmap *bitmap, unsigned num_bits)
 {   
     unsigned num_words = num_bits / BITS_PER_WORD;
     if (num_bits % BITS_PER_WORD) num_words++;
 
-#ifdef PLACEHOLDER_FOR_WORKING_MALLOC
-    if (!bitmap) bitmap = malloc(sizeof(struct bitmap));
-    memset(bitmap, 0, sizeof(*bitmap));
-    bitmap->bits = malloc(sizeof(*bitmap->bits) * num_words);
-    memset(bitmap->bits, 0, sizeof(*bitmap->bits) * num_words);
-    bitmap->flags |= MUST_FREE;
-#else
-    if (!bitmap) bitmap = kcalloc(1, sizeof(struct bitmap));
-    bitmap->bits = kcalloc(num_words, sizeof(*bitmap->bits));
-#endif
+    if (!bitmap)
+    {
+        bitmap = kcalloc(1, sizeof(struct bitmap));
+        bitmap->flags |= BITMAP_FREE_STRUCT;
+    }
     bitmap->word_count = num_words;
+    bitmap->bits = kcalloc(num_words, sizeof(*bitmap->bits));
 
     return bitmap;
 }
 
-#ifdef PLACEHOLDER_FOR_WORKING_MALLOC
 void bitmap_free(struct bitmap *bitmap)
 {
     if (!bitmap)
@@ -35,19 +28,24 @@ void bitmap_free(struct bitmap *bitmap)
         return;
     }
 
+    if (bitmap->flags & BITMAP_FREE_NOTHING)
+    {
+        worry("tried to free un-freeable bitmap");
+        return;
+    }
+
     WORRY_IF(!bitmap->bits, "freeing bitmap with null bits");
-    KASSERT(bitmap->flags & MUST_FREE);
+    kfree(bitmap->bits);
 
-    free(bitmap->bits);
-    free(bitmap);
+    if (bitmap->flags & BITMAP_FREE_STRUCT)
+    {
+        kfree(bitmap);
+    }
+    else
+    {
+        memset(bitmap, 0, sizeof(*bitmap));
+    }
 }
-#endif
-
-/*unsigned bitmap_first_free_block(struct bitmap *bitmap, unsigned size)
-{
-    // The block to test
-    unsigned test_block =
-}*/
 
 unsigned bitmap_first_free(struct bitmap *bitmap)
 {

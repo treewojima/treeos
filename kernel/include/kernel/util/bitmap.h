@@ -12,6 +12,9 @@
 // work in progress
 //#define PLACEHOLDER_FOR_WORKING_MALLOC
 
+#define BITMAP_FREE_STRUCT  (1 << 0)
+#define BITMAP_FREE_NOTHING (1 << 1)
+
 // Bitmap structure that spans multiple words, if necessary
 struct bitmap
 {
@@ -23,11 +26,7 @@ struct bitmap
 // Allocate a bitmap large enough to hold num_bits
 struct bitmap *bitmap_alloc(struct bitmap *bitmap, unsigned num_bits);
 
-#ifdef PLACEHOLDER_FOR_WORKING_MALLOC
 void bitmap_free(struct bitmap *bitmap);
-#else
-#   define bitmap_free(bitmap)
-#endif
 
 #define bitmap_set_bit(bitmap, bit)   ((bitmap)->bits[(bit) / BITS_PER_WORD] |= (1 << ((bit) % BITS_PER_WORD)))
 #define bitmap_clear_bit(bitmap, bit) ((bitmap)->bits[(bit) / BITS_PER_WORD] &= ~(1 << ((bit) % BITS_PER_WORD)))

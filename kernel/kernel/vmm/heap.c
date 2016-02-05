@@ -3,13 +3,14 @@
 #include <kernel/debug.h>
 #include <kernel/pmm.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define MUST_FREE (1 << 0)
 
 struct heap *heap_alloc(struct heap *heap, uint32_t base, uint32_t size)
 {
     KASSERT(base);
-    KASSERT(size);
+    //KASSERT(size);
 
     // Make sure the heap is page-aligned
     if (base % PAGE_SIZE || size % PAGE_SIZE)
@@ -40,6 +41,12 @@ struct heap *heap_alloc(struct heap *heap, uint32_t base, uint32_t size)
 // NOTE: This does not allocate consecutive pages, and has to be revised!
 void *heap_grow(struct heap *heap, uint32_t pages)
 {
+    // Squelch compiler warnings/errors
+    if (heap) heap = 0;
+    if (pages) pages = 0;
+    return NULL;
+
+#if 0
     KASSERT(heap);
 
     // Cause for slight alarm, but not disastrous
@@ -52,11 +59,11 @@ void *heap_grow(struct heap *heap, uint32_t pages)
     }
 
     // Make sure the heap is (still) page-aligned
-    if (heap->base % PAGE_SIZE || heap->limit % PAGE_SIZE)
+    if (heap->base % PAGE_SIZE || heap->size % PAGE_SIZE)
     {
         char buf[100];
         sprintf(buf, "heap %p not page-aligned: base=%u, limit=%u",
-                heap, heap->base, heap->limit);
+                heap, heap->base, heap->size);
         panic(buf);
     }
 
@@ -73,7 +80,7 @@ void *heap_grow(struct heap *heap, uint32_t pages)
         uint32_t offset = bit << PAGE_SIZE_SHIFT;
 
         // Make sure we aren't growing past the defined heap size
-        if (offset >= heap->limit)
+        if (offset >= heap->size)
         {
             char buf[100];
             sprintf(buf, "attempted to grow heap %p past defined size: "
@@ -91,6 +98,7 @@ void *heap_grow(struct heap *heap, uint32_t pages)
     }
 
     return heap;
+#endif
 }
 
 void heap_shrink(struct heap *heap, void *ptr, uint32_t pages)

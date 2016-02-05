@@ -298,5 +298,17 @@ static void irq_int_handler(struct registers *registers)
 
 static void syscall_int_handler(struct registers *registers)
 {
-    printf("\nreceived syscall %d\n", registers->eax);
+    printf("\nreceived syscall %d\n", registers->ecx);
+    switch (registers->ecx)
+    {
+    case 1:
+        {
+            char *str = (char *)registers->edx;
+            tty_puts(str, true);
+        }
+        break;
+
+    default:
+        break;
+    }
 }

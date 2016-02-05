@@ -1,5 +1,5 @@
-#ifndef __TREEOS_ARCH_I386_THREAD_H__
-#define __TREEOS_ARCH_I386_THREAD_H__
+#ifndef __TREEOS_ARCH_I386_PROC_THREAD_H__
+#define __TREEOS_ARCH_I386_PROC_THREAD_H__
 
 #include <defines.h>
 
@@ -16,14 +16,20 @@
 #include <stdint.h>
 
 // TODO: a lot
-struct kthread
+struct thread
 {
-    struct page_dir_entry *pgdir;
-    struct registers *registers;
-
-    struct kthread *next;
+    uint32_t eip;
+    uint32_t esp;
+    struct thread *next;
 } PACKED;
 
-//void kthread_create()
+typedef void (*entrypoint)();
+
+#if 0
+void thread_create(struct thread *thread,
+                   entrypoint entry,
+                   struct page_dir_entry *pgdir,
+                   uint8_t flags);
+#endif
 
 #endif

@@ -17,6 +17,6 @@
 #define USE_BOOTSTRAP_PAGING
 
 // Memory map and paging initialization
-void paging_init(void);
+void pmm_init(void);
 
 #endif

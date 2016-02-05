@@ -6,8 +6,6 @@ ENTRY(_start)
 KERNEL_BOOT_VMA = 0x00100000;
 KERNEL_HIGH_VMA = 0xC0000000;
 
-/*KERNEL_HEAP_SIZE = 0x200000;*/
-
 /* Tell where the various sections of the object files will be put in the final
  * kernel image */
 SECTIONS
@@ -55,10 +53,5 @@ SECTIONS
         g_bss_end = . ;
     }
 
-    /* Page alignment is guaranteed for this symbol */
-    /*g_placement_heap_start = .;*/
-
-    . += KERNEL_HEAP_SIZE; /* DEBUG - to add more leeway for initial kernel stuff */
-
-    /*g_kernel_end = . ;*/
+    g_kernel_end = . ;
 }

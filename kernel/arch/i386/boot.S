@@ -5,18 +5,16 @@
 # to be recognized as a multiboot-compatible file
 .section .multiboot
 
+#include <kernel/multiboot.h>
+
 # Declare constants used for creating a multiboot header
-.set ALIGN,    (1 << 0)          # align loaded modules on page boundaries
-.set MEMINFO,  (1 << 1)          # provide memory map
-.set FLAGS,    (ALIGN | MEMINFO) # this is the Multiboot 'flag' field
-.set MAGIC,    0x1BADB002        # 'magic number' lets bootloader find the header
-.set CHECKSUM, -(MAGIC + FLAGS)  # checksum of above, to prove we are multiboot
+#define MULTIBOOT_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
 
 # The multiboot header itself
 .align 0x100
-    .long MAGIC
-    .long FLAGS
-    .long CHECKSUM
+    .long MULTIBOOT_HEADER_MAGIC
+    .long MULTIBOOT_FLAGS
+    .long -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_FLAGS)
 
 # Data section - includes the initial page directories/tables
 .section .data
@@ -160,7 +158,7 @@ init_bootstrap_paging:
     #movl $g_kernel_low_page_table, %ebx
     movl $g_kernel_page_table, %ebx
     subl $KERNEL_HIGH_VMA    , %ebx
-    orl  $0x1                , %ebx
+    orl  $0x7                , %ebx
     movl %ebx                , (%eax)
 
     pushl %eax
@@ -176,7 +174,7 @@ init_bootstrap_paging:
 
     movl $g_kernel_page_table, %ebx
     subl $KERNEL_HIGH_VMA    , %ebx
-    orl  $0x1                , %ebx
+    orl  $0x7                , %ebx
     movl %ebx                , (%eax)
 
     popl %ebx
@@ -209,7 +207,7 @@ init_bootstrap_paging:
     addl $4092      , %eax   # page dir index 1023 * 4 bytes in size
     movl %ebx       , %ecx
     andl $0xFFFFF000, %ecx   # strip off the last 12 flag bits
-    orl  $0x3       , %ecx
+    orl  $0x7       , %ecx
     movl %ecx       , (%eax)
 
     movl %ebx      , %cr3
@@ -259,7 +257,7 @@ map_page:
 
     popl %edx
     addl %ebx, %eax
-    orl  $0x1, %edx
+    orl  $0x7, %edx
     movl %edx, (%eax)
 
     popl %edx

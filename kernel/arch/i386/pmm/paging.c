@@ -1,5 +1,6 @@
 #include <arch/i386/pmm/paging.h>
 
+#include <arch/i386/pmm/allocator.h>
 #include <arch/i386/pmm/tlb.h>
 #include <kernel/debug.h>
 #include <kernel/vmm/addr.h>
@@ -9,20 +10,27 @@
 #include <string.h>
 
 static uint32_t page_count;
+
 static struct bitmap page_bitmap;
+// MAXIMUM OF 128 MiB MEMORY SUPPORTED WITH THIS ARRAY
+#define BITMAP_ARRAY_SIZE 1024
+static unsigned page_bitmap_bits[BITMAP_ARRAY_SIZE];
 
 uint32_t paging_init_bitmap(uint32_t mem_size)
 {    
     page_count = mem_size >> PAGE_SIZE_SHIFT;
     if (mem_size % PAGE_SIZE) page_count++;
 
-    bitmap_alloc(&page_bitmap, page_count);
+    // Initialize bitmap by hand, since we don't have dynamic memory allocation
+    //bitmap_alloc(&page_bitmap, page_count);
+    page_bitmap.bits = page_bitmap_bits;
+    page_bitmap.word_count = page_count / BITS_PER_WORD;
+    if (page_count % BITS_PER_WORD) page_bitmap.word_count++;
+    page_bitmap.flags = 0;
 
     // Set all of memory as "in use" by default
-    //uint32_t bytes_allocated =
-    //        frame_count / (BITS_PER_BITMAP / sizeof(*frame_bitmap));
     uint32_t bytes_allocated = page_bitmap.word_count * sizeof(page_bitmap.bits);
-    memset(page_bitmap.bits, 0xFF, bytes_allocated);
+    memset(page_bitmap.bits, 0xFF, BITMAP_ARRAY_SIZE); //bytes_allocated);
 
     return bytes_allocated;
 }
@@ -30,9 +38,10 @@ uint32_t paging_init_bitmap(uint32_t mem_size)
 void paging_init_region(uint32_t base, uint32_t size)
 {
     base >>= PAGE_SIZE_SHIFT;
-    size >>= PAGE_SIZE_SHIFT;
+    uint32_t size_bits = size >> PAGE_SIZE_SHIFT;
+    if (size % PAGE_SIZE) size_bits++;
 
-    for (; (int)size >= 0; base++, size--)
+    for (; (int)size_bits >= 0; base++, size_bits--)
     {
         bitmap_clear_bit(&page_bitmap, base);
     }
@@ -44,9 +53,10 @@ void paging_init_region(uint32_t base, uint32_t size)
 void paging_deinit_region(uint32_t base, uint32_t size)
 {
     base >>= PAGE_SIZE_SHIFT;
-    size >>= PAGE_SIZE_SHIFT;
+    uint32_t size_bits = size >> PAGE_SIZE_SHIFT;
+    if (size % PAGE_SIZE) size_bits++;
 
-    for (; (int)size >= 0; base++, size--)
+    for (; (int)size_bits >= 0; base++, size_bits--)
     {
         bitmap_set_bit(&page_bitmap, base);
     }
@@ -93,12 +103,11 @@ void page_free(struct page_table_entry *page)
 void page_map(uint32_t physaddr,
               uint32_t virtualaddr,
               bool rw,
-              bool user,
-              bool flush)
+              bool user UNUSED)
 {
-    PANIC_IF((physaddr & 0xFFF) != 0,
+    PANIC_IF(!PAGE_ALIGNED(physaddr),
              "physical address is not page-aligned");
-    PANIC_IF((virtualaddr & 0xFFF) != 0,
+    PANIC_IF(!PAGE_ALIGNED(virtualaddr),
              "virtual address is not page-aligned");
     PANIC_IF(!bitmap_test_bit(&page_bitmap, physaddr >> PAGE_SIZE_SHIFT),
              "mapping page that is not allocated in page_bitmap");
@@ -110,15 +119,13 @@ void page_map(uint32_t physaddr,
     if (!pde[pgdir_index].present)
     {
         // Create a new page directory entry
-        struct page_table_entry *new_pte =
-                kcalloca(1024, sizeof(*new_pte));
         pde[pgdir_index].present = 1;
         pde[pgdir_index].rw = 1;
         pde[pgdir_index].user = 1;
 
         // Make sure the mapping is to the PTE's PHYSICAL address, not virtual
-        uint32_t new_pte_physaddr = (uint32_t)virt_to_phys(new_pte);
-        pde[pgdir_index].address = (uint32_t)new_pte_physaddr >> 12;
+        void *table = paging_structure_alloc();
+        pde[pgdir_index].address = (uint32_t)virt_to_phys(table) >> 12;
     }
 
     struct page_table_entry *pte =
@@ -137,10 +144,46 @@ void page_map(uint32_t physaddr,
     {
         pte[pgtbl_index].present = 1;
         pte[pgtbl_index].rw = rw;
-        pte[pgtbl_index].user = user;
+        pte[pgtbl_index].user = 1;//user;
         pte[pgtbl_index].address = physaddr >> 12;
     }
 
-    // Update the TLB
-    if (flush) flush_tlb(virtualaddr);
+    flush_tlb(virtualaddr);
+}
+
+void page_unmap(uint32_t virtualaddr)
+{
+    PANIC_IF(!PAGE_ALIGNED(virtualaddr),
+             "virtual address is not page-aligned");
+
+    uint32_t pgdir_index = (uint32_t)virtualaddr >> 22;
+    uint32_t pgtbl_index = (uint32_t)virtualaddr >> 12 & 0x03FF;
+
+    struct page_dir_entry *pde = (struct page_dir_entry *)0xFFFFF000;
+    if (!pde[pgdir_index].present)
+    {
+        // How can we unmap something that doesn't even have an entry in the
+        // page directory?
+        char buffer[128];
+        sprintf(buffer,
+                "page directory entry not present for virtual address %x\n",
+                virtualaddr);
+        panic(buffer);
+    }
+
+    struct page_table_entry *pte =
+            ((struct page_table_entry *)0xFFC00000) + (0x400 * pgdir_index);
+    if (!pte[pgtbl_index].present)
+    {
+        // No entry for this page
+        char buffer[128];
+        sprintf(buffer,
+                "page table entry not present for virtual address %x\n",
+                virtualaddr);
+        panic(buffer);
+    }
+
+    // It's like it was never there...
+    memset(&pte[pgtbl_index], 0, sizeof(*pte));
+    flush_tlb(virtualaddr);
 }
