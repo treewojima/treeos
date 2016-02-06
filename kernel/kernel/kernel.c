@@ -74,6 +74,7 @@ void kmain(void)
     test_malloc();
 #endif
     test_usermode();
+    for(;;);
 
-    panic("end of kmain");
+    //panic("end of kmain");
 }

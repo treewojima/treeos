@@ -17,13 +17,17 @@ int_handler_stub:
     movw %ax  , %fs
     movw %ax  , %gs
 
+    # Find the beginning of the interrupt stack frame
+    movl %esp, %ebp
+    addl $48 , %ebp
+
     # Find the address of the interrupt handler function (in C)
-    movl 48(%esp), %esi             # grab the interrupt value out of the stack
+    movl (%ebp), %esi               # grab the interrupt value out of the stack
     movl $g_int_handler_table, %eax
     movl (%eax, %esi, 4), %ebx      # grab the address of the C function
     pushl %esp                      # push the address of x86_registers struct
     call *%ebx
-    add $4, %esp
+    addl $4, %esp
 
     # Reload original registers, clean up stack and return
     popl %gs
@@ -43,7 +47,7 @@ int_handler_stub:
     .type isr\inum, @function
     isr\inum:
         #cli
-        pushl $0
+        pushl $0xDEADBEEF
         pushl $(\inum)
         jmp int_handler_stub
 .endm
@@ -64,7 +68,7 @@ int_handler_stub:
     .type irq\irqnum, @function
     irq\irqnum:
         #cli
-        pushl $0
+        pushl $0xDEADBEEF
         pushl $(\inum)
         jmp int_handler_stub
 .endm

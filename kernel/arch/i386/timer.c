@@ -5,7 +5,7 @@
 #include <kernel/interrupt.h>
 #include <stdio.h>
 
-static uint32_t system_ticks;
+static uint32_t system_ticks, quantum;
 
 //static void timer_callback(struct registers *registers);
 static void timer_callback();
@@ -81,4 +81,11 @@ void timer_sleep(uint32_t ticks)
 static void timer_callback()
 {
     system_ticks++;
+    quantum++;
+
+    if (quantum >= 100)
+    {
+        quantum = 0;
+        printf("hai2u\n");
+    }
 }
