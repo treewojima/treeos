@@ -37,7 +37,7 @@ klibc/stdio/vprintf.c
 klibc/stdio/vsprintf.c
 klibc/stdio/sprintf.c
 kernel/include/kernel/timer.h
-kernel/arch/i386/timer.c
+kernel/arch/i386/pit.c
 Makefile
 run.sh
 debug.sh
@@ -199,3 +199,5 @@ kernel/kernel/panic.c
 kernel/kernel/kernel_test.c
 kernel/kernel/kernel_test.h
 kernel/kernel/kernel_test_asm.S
+kernel/kernel/timer.c
+kernel/include/arch/i386/pit.h

@@ -1,20 +1,13 @@
 #include <kernel/timer.h>
 
-#include <arch/i386/cpu.h>
-#include <arch/i386/ioport.h>
+#include <arch/i386/pit.h>
 #include <kernel/interrupt.h>
 #include <stdio.h>
 
 static uint32_t system_ticks, quantum;
+static void timer_callback(struct registers *registers UNUSED);
 
-//static void timer_callback(struct registers *registers);
-static void timer_callback();
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *  PUBLIC FUNCTIONS                                                         *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-/* Initialize the system timer (uses the PIT)
+/* Initialize the system timer
  * Parameters:
  *     frequency - desired frequency
  *
@@ -23,23 +16,7 @@ static void timer_callback();
  */
 void timer_init(uint32_t frequency)
 {
-    system_ticks = 0;
-
-    // The value sent to the PIT is the value to divide its input clock
-    // (1193180 Hz) by, to get the required frequency.
-    // NOTE: the divisor must fit into 16 bits.
-    uint16_t divisor = 1193180 / frequency;
-
-    // Send command byte
-    ioport_outb(0x43, 0x36);
-
-    // Split divisor into upper/lower bytes
-    uint8_t l = (uint8_t)(divisor & 0xFF);
-    uint8_t h = (uint8_t)(divisor >> 8);
-
-    // Send divisor
-    ioport_outb(0x40, l);
-    ioport_outb(0x40, h);
+    pit_init(frequency);
 
     // Set up our timer callback on IRQ0 and unmask the interrupt
     int_register_irq_handler(IRQ_PIT, &timer_callback);
@@ -78,7 +55,7 @@ void timer_sleep(uint32_t ticks)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Called everytime IRQ0 is fired
-static void timer_callback()
+static void timer_callback(struct registers *registers UNUSED)
 {
     system_ticks++;
     quantum++;
