@@ -3,6 +3,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
+#include <kernel/proc/sched.h>
 #include <kernel/pmm.h>
 #include <kernel/timer.h>
 #include <kernel/tty.h>
@@ -73,8 +74,8 @@ void kmain(void)
     test_map_page();
     test_malloc();
 #endif
-    test_usermode();
-    for(;;);
+    sched_init();
+    test_usermode_stage1();
 
-    //panic("end of kmain");
+    panic("end of kmain");
 }

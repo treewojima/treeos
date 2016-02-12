@@ -9,15 +9,18 @@
 
 #include <stdint.h>
 
-// Architecture-specific
-struct thread;
-struct meminfo;
+#ifdef TREEOS_I386
+#   include <arch/i386/pmm/paging.h>
+#   include <arch/i386/proc/thread.h>
+#endif
 
 struct process
 {
     struct thread *thread;
-    struct meminfo *meminfo;
+    struct page_dir_entry *pgdir;
     uint8_t flags;
+
+    struct process *next;
 };
 
 // Process flags
@@ -25,9 +28,6 @@ struct process
 
 struct process *process_create(struct process *process);
 
-#ifdef TREEOS_I386
-#   include <arch/i386/proc/meminfo.h>
-#   include <arch/i386/proc/thread.h>
-#endif
+
 
 #endif

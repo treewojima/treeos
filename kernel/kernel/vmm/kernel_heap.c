@@ -13,10 +13,6 @@
 //       memory while unable to allocate memory" problem. Either that or
 //       customize the malloc implementation to mesh directly onto the PMM/VMM
 
-// Kernel heap is placed at 3.25 GiB, with a maximum size of 1 MiB
-#define KHEAP_START    0xD0000000
-#define KHEAP_MAX_SIZE 0x100000
-
 // Kernel heap structure
 static struct heap kheap;
 

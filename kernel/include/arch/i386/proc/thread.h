@@ -15,13 +15,17 @@
 #include <arch/i386/pmm/paging.h>
 #include <stdint.h>
 
+struct process;
+
 // TODO: a lot
 struct thread
 {
-    uint32_t eip;
-    uint32_t esp;
+    struct registers registers;
+
+    struct process *owner;    
+
     struct thread *next;
-} PACKED;
+};
 
 typedef void (*entrypoint)();
 

@@ -187,7 +187,6 @@ klibc/include/stdlib.h
 kernel/arch/i386/pmm/allocator.c
 kernel/include/arch/i386/pmm/allocator.h
 kernel/include/kernel/proc/process.h
-kernel/include/arch/i386/proc/meminfo.h
 kernel/kernel/proc/process.c
 kernel/kernel/util/bitmap.c
 kernel/kernel/vmm/heap.c
@@ -201,3 +200,6 @@ kernel/kernel/kernel_test.h
 kernel/kernel/kernel_test_asm.S
 kernel/kernel/timer.c
 kernel/include/arch/i386/pit.h
+kernel/include/kernel/proc/sched.h
+kernel/kernel/proc/sched.c
+kernel/arch/i386/proc/sched_asm.S

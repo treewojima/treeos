@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Place the kernel heap at 3.25 GiB, 1 MiB in size
+// Kernel heap is placed at 3.25 GiB, with a maximum size of 1 MiB
 #define KHEAP_START    0xD0000000
 #define KHEAP_MAX_SIZE 0x100000
 

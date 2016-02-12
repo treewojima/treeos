@@ -1,20 +1,22 @@
 .section .text
 
-.global test_usermode
-.type test_usermode, @function
-test_usermode:
+.global test_usermode_stage2
+.type test_usermode_stage2, @function
+test_usermode_stage2:
     movw $0x23, %ax
     movw %ax  , %ds
     movw %ax  , %es
     movw %ax  , %fs
     movw %ax  , %gs
 
-    movl  %esp, %eax
+    #movl  %esp, %eax
     pushl $0x23
-    pushl %eax
+    #pushl %eax
+    movl $g_usermode_esp, %eax
+    pushl (%eax)
     pushfl
     pushl $0x1B
-    pushl $test_usermode_c
+    pushl $test_usermode_stage3
     iret
 
 .global sys_puts

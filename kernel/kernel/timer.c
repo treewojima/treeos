@@ -3,6 +3,7 @@
 #include <arch/i386/pit.h>
 #include <kernel/interrupt.h>
 #include <stdio.h>
+#include "kernel_test.h"
 
 static uint32_t system_ticks, quantum;
 static void timer_callback(struct registers *registers UNUSED);

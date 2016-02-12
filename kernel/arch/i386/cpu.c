@@ -253,13 +253,14 @@ char *strcat_registers(char *buf, const struct registers *const registers)
                    registers->ds, registers->es, registers->fs,
                    registers->gs);
     pos += sprintf(buf + pos, "  cs:eip=%x:%x\n",
-                   registers->eip, registers->cs);
+                   registers->cs, registers->eip);
+    pos += sprintf(buf + pos, "  ss:esp=%x:%x\n",
+                   registers->ss, registers->esp);
     pos += sprintf(buf + pos, "  eflags=%x\n",
                    registers->eflags);
     pos += sprintf(buf + pos, "  int=%d err=%x\n",
                    registers->int_num, registers->error_code);
-    pos += sprintf(buf + pos, "  esp=%x ss=%x\n",
-                   registers->esp, registers->ss);
+
 
     return buf;
 }
