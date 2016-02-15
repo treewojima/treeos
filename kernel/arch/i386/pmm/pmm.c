@@ -21,7 +21,7 @@ static void reinit_paging(void);
 #endif
 
 static void parse_memory_map(const struct multiboot_info *const mbi);
-static void page_fault_int_handler(struct registers *registers);
+static void page_fault_int_handler(const struct thread_context *const context);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  PUBLIC FUNCTIONS                                                         *
@@ -59,9 +59,6 @@ void pmm_init(void)
     uint32_t real_kernel_start = (uint32_t)&g_kernel_start - (uint32_t)&KERNEL_HIGH_VMA;
     uint32_t real_kernel_end = (uint32_t)&g_kernel_end - (uint32_t)&KERNEL_HIGH_VMA;
     paging_deinit_region(real_kernel_start, real_kernel_end - real_kernel_start);
-
-    // NOTE: Right now this just blindly allocates the first 4 MiB of memory
-    //paging_deinit_region(0, 4096 * 1024);
 
 #ifndef USE_BOOTSTRAP_PAGING
     reinit_paging();
@@ -122,11 +119,11 @@ static void parse_memory_map(const struct multiboot_info *const mbi)
     }
 }
 
-static void page_fault_int_handler(struct registers *registers)
+static void page_fault_int_handler(const struct thread_context *const context)
 {
     char msg_buf[MAX_PANIC_BUF];
     sprintf(msg_buf, "page fault at address %p", read_cr2());
-    panic_r(msg_buf, registers);
+    panic_r(msg_buf, context);
 }
 
 #ifndef USE_BOOTSTRAP_PAGING

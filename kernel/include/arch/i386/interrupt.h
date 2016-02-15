@@ -16,13 +16,23 @@
 #ifndef TREEOS_EXPORT_ASM
 
 #include <arch/i386/cpu.h>
-
-#define int_enable()  __asm__ __volatile__ ("sti")
-#define int_disable() __asm__ __volatile__ ("cli")
+#include <kernel/debug.h>
 
 #define int_enabled() (read_eflags() & (1 << 9))
 
-void int_set_raw_mask(uint16_t mask);
+#define int_enable()                  \
+    do                                \
+    {                                 \
+        KASSERT(!int_enabled());      \
+        __asm__ __volatile__ ("sti"); \
+    } while (0);
+
+#define int_disable()                 \
+    do                                \
+    {                                 \
+        KASSERT(int_enabled());       \
+        __asm__ __volatile__ ("cli"); \
+    } while (0);
 
 #endif
 

@@ -3,8 +3,8 @@
 # Interrupt handler stub function
 .type int_handler_stub, @function
 int_handler_stub:
-    # Preserve some registers (as a registers struct)
-    pushal
+    # Preserve the interrupted thread context
+    pushal    # eax, ecx, edx, ebx, esp (current, not thread), ebp, esi, edi
     pushl %ds
     pushl %es
     pushl %fs

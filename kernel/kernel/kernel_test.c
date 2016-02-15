@@ -1,108 +1,79 @@
 #include "kernel_test.h"
 
-#include <kernel/panic.h>
-#include <kernel/pmm.h>
-#include <kernel/vmm/addr.h>
-#include <stdio.h>
-#include <stdint.h>
+#include <arch/i386/cpu.h>
+#include <kernel/debug.h>
+#include <kernel/proc/scheduler.h>
+#include <kernel/tasks/idle.h>
+#include <kernel/tasks/system.h>
+#include <kernel/vmm/heap.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define NUM_TASKS 2
+extern struct page_dir_entry *g_kernel_page_dir;
 
-extern void sys_puts(char *);
+static void init_idle_task(void);
+static void init_system_task(void);
 
-uint32_t g_usermode_esp UNUSED;
-
-struct task
+void test_tasks(void)
 {
-    uint32_t esp;
-    uint32_t eip;
-};
+    init_system_task();
+    init_idle_task();
 
-struct task tasks[2];
-bool current_task;
+    scheduler_bootstrap_thread(&g_kernel_system_task);
+}
 
-void test_map_page(void)
+void init_idle_task(void)
 {
-    printf("testing map_page\n");
+    struct process *task = &g_kernel_idle_task;
+    memset(task, 0, sizeof(*task));
 
+    task->pgdir = g_kernel_page_dir;
+    task->quantum = DEFAULT_QUANTUM;
+    //task->next = &g_kernel_system_task;
+
+    task->thread = kcalloc(1, sizeof(struct thread));
+    KASSERT(task->thread);
+    task->thread->owner = task;
+
+    uint32_t esp = KHEAP_START - PAGE_SIZE;
     struct page_table_entry pte = { 0 };
     PANIC_IF(!page_alloc(&pte), "out of memory");
+    page_map(pte.address << 12, esp - PAGE_SIZE, true, false);
 
-    const uint32_t vaddr = 768 * 1024 * 1024;
+    struct thread_context *c = &task->thread->context;
+    c->esp = esp;
+    c->eip = (uint32_t)&kernel_idle_task;
+    c->cs = 0x8;
+    c->ss = c->ds = c->es = c->fs = c->gs = 0x10;
+    c->eflags = read_eflags() | 0x200;
 
-    uint32_t paddr = pte.address << 12;
-    page_map(paddr, vaddr, true, true);
-
-    int *test = (int *)vaddr;
-    *test = 69;
-    printf("*test      = %d\n", *test);
-    printf("test_vaddr = %p\n", test);
-    printf("test_paddr = %p\n", virt_to_phys(test));
-
-    page_unmap(vaddr);
-    page_free(&pte);
-
-    printf("done testing map_page\n");
+    scheduler_add_process(task);
 }
 
-void test_malloc(void)
+void init_system_task(void)
 {
-    printf("testing malloc\n");
+    struct process *task = &g_kernel_system_task;
+    memset(task, 0, sizeof(*task));
 
-    const int ARRAY_SIZE = 5;
-    int *foo = kmalloc(sizeof(*foo) * ARRAY_SIZE);
-    for (int i = 0; i < ARRAY_SIZE; i++)
-    {
-        foo[i] = i * 2;
-    }
+    task->pgdir = g_kernel_page_dir;
+    task->quantum = DEFAULT_QUANTUM;
+    //task->next = &g_kernel_idle_task;
 
-    for (int i = ARRAY_SIZE - 1; i >= 0; i--)
-    {
-        printf("foo[%d] = %d\n", i, foo[i]);
-    }
+    task->thread = kcalloc(1, sizeof(struct thread));
+    KASSERT(task->thread);
+    task->thread->owner = task;
 
-    char *bar = kcalloc(ARRAY_SIZE, 1);
-    sprintf(bar, "hai2u");
-    printf("bar = %s\n", bar);
+    uint32_t esp = KHEAP_START - (PAGE_SIZE * 3);
+    struct page_table_entry pte = { 0 };
+    PANIC_IF(!page_alloc(&pte), "out of memory");
+    page_map(pte.address << 12, esp - PAGE_SIZE, true, false);
 
-    kfree(foo);
-    kfree(bar);
+    struct thread_context *c = &task->thread->context;
+    c->esp = esp;
+    c->eip = (uint32_t)&kernel_system_task;
+    c->cs = 0x8;
+    c->ss = c->ds = c->es = c->fs = c->gs = 0x10;
+    c->eflags = read_eflags() | 0x200;
 
-    printf("done testing malloc\n");
-}
-
-void test_usermode_stage1(void)
-{
-    uint32_t vaddr = (768 * 1024 * 1024) - (PAGE_SIZE * NUM_TASKS);
-    for (int i = 0; i < NUM_TASKS; i++)
-    {
-        struct page_table_entry pte = { 0 };
-        PANIC_IF(!page_alloc(&pte), "out of memory");
-        page_map(pte.address << 12, vaddr, true, true);
-        vaddr += PAGE_SIZE;
-        tasks[i].esp = vaddr;
-    }
-
-    tasks[0].eip = (uint32_t)&task1;
-    tasks[1].eip = (uint32_t)&task2;
-
-    //test_usermode_stage2();
-}
-
-void test_usermode_stage3(void)
-{
-    sys_puts("hello, ring 3!");
-    sys_puts("goodbye, ring 3!");
-    for (;;);
-}
-
-void task1(void)
-{
-
-}
-
-void task2(void)
-{
-
+    scheduler_add_process(task);
 }

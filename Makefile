@@ -7,19 +7,19 @@ INCLUDEDIR := $(SYSROOT)/usr/include
 LIBDIR     := $(SYSROOT)/usr/lib
 BOOTDIR    := $(SYSROOT)/boot
 
-WARNINGS := -Wall -Wextra -Wpedantic -Werror -Wshadow
+WARNINGS := -Wall -Wextra -Wpedantic -Werror -Wshadow -Wno-error=unused-function
 CFLAGS   := -c -pipe -ggdb3 -std=gnu11 -O0 $(WARNINGS) -fdiagnostics-color=always \
             -ffreestanding -Ikernel/include -Iklibc/include \
-            --sysroot=$(SYSROOT) -DTREEOS_I386 \
-            -DNOT_IN_QT_CREATOR
+            --sysroot=$(SYSROOT) -DTREEOS_CMDLINE_DEFINES \
+			-DTREEOS_I386 -DTREEOS_DEBUG
 ASFLAGS  := $(CFLAGS) -DTREEOS_EXPORT_ASM
 LDFLAGS  := -ffreestanding -fno-common -nostdlib \
             -T kernel/arch/i386/linker.ld --sysroot=$(SYSROOT) -lklibc
 
 KERNEL_CSOURCES := $(shell find kernel -type f -name "*.c" -print)
-KERNEL_ASOURCES := $(shell find kernel -iname "crt?.S" -prune -o -type f -iname "*.S" -print)
+KERNEL_ASOURCES := $(shell find kernel -iname "crt?.S" -prune -o -type f -name "*.S" -print)
 KLIBC_CSOURCES  := $(shell find klibc -type f -name "*.c" -print)
-KLIBC_ASOURCES  := $(shell find klibc -type f -iname "*.S" -print)
+KLIBC_ASOURCES  := $(shell find klibc -type f -name "*.S" -print)
 ALL_CSOURCES    := $(KERNEL_CSOURCES) $(KLIBC_CSOURCES)
 ALL_ASOURCES    := $(KERNEL_ASOURCES) $(KLIBC_ASOURCES)
 

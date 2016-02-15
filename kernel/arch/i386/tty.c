@@ -2,6 +2,7 @@
 
 #include <arch/i386/ioport.h>
 #include <kernel/debug.h>
+#include <kernel/interrupt.h>
 #include <stdbool.h>
 
 // Maximum screen size
@@ -48,6 +49,8 @@ void tty_init(void)
  */
 void tty_clear(void)
 {
+    bool lock = int_lock_region();
+
     tty_row = tty_col = 0;
     update_cursor();
 
@@ -60,6 +63,8 @@ void tty_clear(void)
             tty_buf[y * VGA_WIDTH + x] = clear_char;
         }
     }
+
+    int_unlock_region(lock);
 }
 
 /* Write a char to the VGA console
@@ -84,6 +89,8 @@ int tty_putchar(int c)
  */
 int tty_putchar_color(int c, uint8_t color)
 {
+    bool lock = int_lock_region();
+
     const uint16_t encoded_char = (uint16_t)c | (uint16_t)(color << 8);
 
     // Handle control characters
@@ -116,6 +123,7 @@ int tty_putchar_color(int c, uint8_t color)
     }
 
     update_cursor();
+    int_unlock_region(lock);
     return c;
 }
 
@@ -141,6 +149,8 @@ int tty_puts(const char *str, bool newline)
  */
 int tty_puts_color(const char *str, uint8_t color, bool newline)
 {
+    bool lock = int_lock_region();
+
     KASSERT(str != NULL);
 
     const char *counter;
@@ -152,7 +162,10 @@ int tty_puts_color(const char *str, uint8_t color, bool newline)
     if (newline)
         tty_putchar_color('\n', color);
     
-    return counter - str + (newline ? 1 : 0);
+    int ret = counter - str + (newline ? 1 : 0);
+
+    int_unlock_region(lock);
+    return ret;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -162,16 +175,22 @@ int tty_puts_color(const char *str, uint8_t color, bool newline)
 // Update the blinking cursor underscore
 static void update_cursor(void)
 {
-   const uint16_t current_location = tty_row * VGA_WIDTH + tty_col;
-   ioport_outb(0x3D4, 14);
-   ioport_outb(0x3D5, current_location >> 8);
-   ioport_outb(0x3D4, 15);
-   ioport_outb(0x3D5, current_location);
+    bool lock = int_lock_region();
+
+    const uint16_t current_location = tty_row * VGA_WIDTH + tty_col;
+    ioport_outb(0x3D4, 14);
+    ioport_outb(0x3D5, current_location >> 8);
+    ioport_outb(0x3D4, 15);
+    ioport_outb(0x3D5, current_location);
+
+    int_unlock_region(lock);
 }
 
 // Scroll the screen by one line
 static void scroll(void)
 {
+    bool lock = int_lock_region();
+
     const uint16_t clear_char = (uint16_t)' ' | (uint16_t)(TTY_COLOR_SCREEN << 8);
 
     // Move everything in the screen up one line
@@ -186,4 +205,6 @@ static void scroll(void)
     }
 
     tty_row--;
+
+    int_unlock_region(lock);
 }

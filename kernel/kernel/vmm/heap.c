@@ -44,6 +44,7 @@ void *heap_grow(struct heap *heap, uint32_t pages)
     // Squelch compiler warnings/errors
     if (heap) heap = 0;
     if (pages) pages = 0;
+    panic("THIS FUNCTION IS UNIMPLEMENTED AND SHOULD NOT BE USED");
     return NULL;
 
 #if 0
@@ -107,4 +108,5 @@ void heap_shrink(struct heap *heap, void *ptr, uint32_t pages)
     if (heap) heap = 0;
     if (ptr) ptr = 0;
     if (pages) pages = 0;
+    panic("THIS FUNCTION IS UNIMPLEMENTED AND SHOULD NOT BE USED");
 }

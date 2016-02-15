@@ -1,7 +1,7 @@
 #include <kernel/interrupt.h>
 
-#include <arch/i386/cpu.h>
 #include <arch/i386/ioport.h>
+#include <arch/i386/proc/thread.h>
 #include <kernel/debug.h>
 #include <kernel/panic.h>
 #include <kernel/reboot.h>
@@ -9,7 +9,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+//extern inline bool int_lock_region(void);
 
 // PIC I/O ports
 #define PIC_MASTER_CMD  0x20
@@ -38,21 +41,31 @@
 #define VALID_IRQ(irq) ((irq) < NUM_IRQS)
 
 // Global table of interrupt handler functions
-int_handler_t *g_int_handler_table[INT_NUM_INTERRUPTS];
+int_handler_t g_int_handler_table[INT_NUM_INTERRUPTS];
 
-// Private table of IRQ handlers
-static int_handler_t *irq_handler_table[NUM_IRQS];
+// IRQ handler linked list
+struct irq_handler
+{
+    int_handler_t handler;
+    struct irq_handler *next;
+};
+
+// Each entry in this array is the head of that IRQ's linked list
+static struct irq_handler *irq_handler_list[NUM_IRQS];
+//static int_handler_t *irq_handler_table[NUM_IRQS];
 
 // IRQ mask
 static uint16_t irq_mask;
 #define IRQ_MASK_MASTER(m) ((uint8_t)((m) & 0xFF))
 #define IRQ_MASK_SLAVE(m)  ((uint8_t)(((m) >> 8) & 0xFF))
 
-// Static prototypes
+static void set_raw_mask(uint16_t mask);
 static void remap_pic(void);
-static void unexpected_int_handler(struct registers *registers);
-static void irq_int_handler(struct registers *registers);
-static void syscall_int_handler(struct registers *registers);
+
+// Default handlers
+static void unexpected_int_handler(const struct thread_context *const context);
+static void irq_int_handler(const struct thread_context *const context);
+static void syscall_int_handler(const struct thread_context *const context);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  PUBLIC FUNCTIONS                                                         *
@@ -74,8 +87,8 @@ void int_init(void)
     idt_init();
     remap_pic();
 
-    memset(g_int_handler_table, 0, sizeof(int_handler_t*) * INT_NUM_INTERRUPTS);
-    memset(irq_handler_table, 0, sizeof(int_handler_t*) * NUM_IRQS);
+    memset(g_int_handler_table, 0, sizeof(int_handler_t) * INT_NUM_INTERRUPTS);
+    memset(irq_handler_list, 0, sizeof(struct irq_handler *) * NUM_IRQS);
 
     // Initialize the default interrupt handlers
     for (int i = 0; i < INT_NUM_INTERRUPTS; i++)
@@ -83,25 +96,29 @@ void int_init(void)
         if (i >= FIRST_IRQ_INT &&
             i < FIRST_IRQ_INT + NUM_IRQS)
         {
-            g_int_handler_table[i] = &irq_int_handler;
+            g_int_handler_table[i] = irq_int_handler;
         }
         else if (i == INT_SYSCALL_INTERRUPT)
         {
-            g_int_handler_table[i] = &syscall_int_handler;
+            g_int_handler_table[i] = syscall_int_handler;
         }
         else
         {
-            g_int_handler_table[i] = &unexpected_int_handler;
+            g_int_handler_table[i] = unexpected_int_handler;
         }
     }
 
-    //int_set_irqmask(0);
-
-    //int_end_atomic(iflag);
-    //_int_enable();
     printf("[cpu] initialized interrupt and IRQ handlers\n");
 }
 
+/* Set an interrupt handler routine
+ * Parameters:
+ *     interrupt - the interrupt number (NOT the IRQ number)
+ *     handler - pointer to the handler function
+ *
+ * Returns:
+ *     void
+ */
 void int_register_handler(uint8_t interrupt, int_handler_t handler)
 {
     KASSERT(interrupt < INT_NUM_INTERRUPTS);
@@ -115,7 +132,7 @@ void int_register_handler(uint8_t interrupt, int_handler_t handler)
     // If handler is null, reset the handler function to the default
     if (!handler)
     {
-        g_int_handler_table[interrupt] = &unexpected_int_handler;
+        g_int_handler_table[interrupt] = unexpected_int_handler;
     }
     else
     {
@@ -123,26 +140,58 @@ void int_register_handler(uint8_t interrupt, int_handler_t handler)
     }
 }
 
+/* Register an IRQ handler
+ * Parameters:
+ *     irq - the IRQ number (NOT the raw interrupt number)
+ *     handler - pointer to the handler function
+ *
+ * Returns:
+ *     void
+ */
 void int_register_irq_handler(uint8_t irq, int_handler_t handler)
 {
     KASSERT(VALID_IRQ(irq));
     KASSERT(irq != 2);
-    //KASSERT(handler != NULL);
+    KASSERT(handler);
 
-    // Because our IRQ handler code checks for NULL handler references, don't
-    // bother worrying about it here
-    irq_handler_table[irq] = handler;
+    // NOTE: This assumes that memory management is up and running by the time
+    //       this function is called!
+    struct irq_handler *new_node = kmalloc(sizeof(struct irq_handler));
+    KASSERT(new_node);
+    new_node->handler = handler;
+    new_node->next = NULL;
+
+    // Append the handler to the end of the list
+    struct irq_handler **node = &irq_handler_list[irq];
+    if (!*node)
+    {
+        *node = new_node;
+    }
+    else
+    {
+        while ((*node)->next)
+            *node = (*node)->next;
+
+        (*node)->next = new_node;
+    }
 }
 
+/* Mask an IRQ
+ * Parameters:
+ *     irq - the IRQ number (NOT the raw interrupt number)
+ *
+ * Returns:
+ *     true if IRQ was masked, false if it was already masked
+ */
 bool int_mask_irq(uint8_t irq)
 {
     KASSERT(VALID_IRQ(irq));
     KASSERT(irq != 2);
 
-    uint8_t real_irq = 1 << irq;
+    uint16_t irq_bit = 1 << irq;
 
     // Check if the IRQ is already masked
-    if (irq_mask & real_irq)
+    if (irq_mask & irq_bit)
     {
         char buf[40];
         sprintf(buf, "masking already masked IRQ %u\n", irq);
@@ -150,19 +199,26 @@ bool int_mask_irq(uint8_t irq)
         return false;
     }
 
-    int_set_raw_mask(irq_mask | real_irq);
+    set_raw_mask(irq_mask | irq_bit);
     return true;
 }
 
+/* Unmask an IRQ
+ * Parameters:
+ *     irq - the IRQ number (NOT the raw interrupt number)
+ *
+ * Returns:
+ *     true if IRQ was unmasked, false if it was already unmasked
+ */
 bool int_unmask_irq(uint8_t irq)
 {
     KASSERT(VALID_IRQ(irq));
     KASSERT(irq != 2);
 
-    uint8_t real_irq = 1 << irq;
+    uint16_t irq_bit = 1 << irq;
 
     // Check if the IRQ is already unmasked
-    if (!(irq_mask & real_irq))
+    if (!(irq_mask & irq_bit))
     {
         char buf[40];
         sprintf(buf, "masking already masked IRQ %u\n", irq);
@@ -170,11 +226,31 @@ bool int_unmask_irq(uint8_t irq)
         return false;
     }
 
-    int_set_raw_mask(irq_mask & ~real_irq);
+    set_raw_mask(irq_mask & ~irq_bit);
     return true;
 }
 
-void int_set_raw_mask(uint16_t mask)
+/* Gets the mask status of an IRQ
+ * Parameters:
+ *     irq - the IRQ number (NOT the raw interrupt number)
+ *
+ * Returns:
+ *     true if IRQ is unmasked, false otherwise
+ */
+bool int_irq_enabled(uint8_t irq)
+{
+    KASSERT(VALID_IRQ(irq));
+
+    return !(irq_mask & (1 << irq));
+}
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *  STATIC FUNCTIONS                                                         *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+// Set the IRQ mask on the PIC
+void set_raw_mask(uint16_t mask)
 {
     if (irq_mask == mask) return;
 
@@ -194,11 +270,7 @@ void int_set_raw_mask(uint16_t mask)
     irq_mask = mask;
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *  STATIC FUNCTIONS                                                         *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-// Initialize/remap the Intel 8259 PIC
+// Initialize/remap the PIC
 static void remap_pic(void)
 {
     ioport_outb(PIC_MASTER_CMD,  ICW1);        // ICW1 to master
@@ -215,7 +287,7 @@ static void remap_pic(void)
     irq_mask = 0xFFFB;
 }
 
-static void unexpected_int_handler(struct registers *registers)
+static void unexpected_int_handler(const struct thread_context *const context)
 {
     static const char *error_msg[] =
     {
@@ -249,66 +321,57 @@ static void unexpected_int_handler(struct registers *registers)
     //         "calling unexpected_int_handler instead of so");
 
     char msg_buf[MAX_PANIC_BUF];
-    if (registers->int_num <= 20)
+    if (context->int_num <= 20)
     {
         sprintf(msg_buf, "unhandled interrupt %d: %s",
-                 registers->int_num, error_msg[registers->int_num]);
+                context->int_num, error_msg[context->int_num]);
     }
-    else if (registers->int_num < 32)
+    else if (context->int_num < 32)
     {
         // All these are Intel-reserved, so just reuse the int15 string
         sprintf(msg_buf, "unhandled interrupt %d: %s",
-                 registers->int_num, error_msg[15]);
+                context->int_num, error_msg[15]);
     }
     else
     {
-        sprintf(msg_buf, "unhandled interrupt %d", registers->int_num);
+        sprintf(msg_buf, "unhandled interrupt %d", context->int_num);
     }
 
     // We ain't coming back from this one.
-    panic_r(msg_buf, registers);
+    panic_r(msg_buf, context);
 }
 
-static void irq_int_handler(struct registers *registers)
+static void irq_int_handler(const struct thread_context *const context)
 {
-    const uint8_t irq = registers->int_num - FIRST_IRQ_INT;
+    const uint8_t irq = context->int_num - FIRST_IRQ_INT;
     KASSERT(VALID_IRQ(irq));
 
-    // Invoke the handler if there is one
-    if (!irq_handler_table[irq])
+    for (struct irq_handler *node = irq_handler_list[irq];
+         node != NULL;
+         node = node->next)
     {
-        char buf[64];
-        sprintf(buf, "\nunmasked but unhandled IRQ %d; ignoring", irq);
-        tty_puts_color(buf, TTY_COLOR_WORRY, true);
-        //panic_r(buf, registers);
-    }
-    else
-    {
-        irq_handler_table[irq](registers);
+        KASSERT(node->handler);
+        node->handler(context);
     }
 
     // Send an EOI signal to the master controller
     // (and slave controller if necessary)
-    if (irq >= 8)
-    {
-        ioport_outb(PIC_SLAVE_CMD, 0x20);
-    }
+    if (irq >= 8) ioport_outb(PIC_SLAVE_CMD, 0x20);
     ioport_outb(PIC_MASTER_CMD, 0x20);
 }
 
-static void syscall_int_handler(struct registers *registers)
+static void syscall_int_handler(const struct thread_context *const context)
 {
-    printf("\nreceived syscall %d\n", registers->ecx);
-    switch (registers->ecx)
+    printf("\nreceived syscall %d\n", context->eax);
+    switch (context->eax)
     {
     case 1:
         {
-            char *str = (char *)registers->edx;
+            char *str = (char *)context->eax;
             tty_puts(str, true);
         }
         break;
 
-    default:
-        break;
+    default: break;
     }
 }

@@ -13,7 +13,7 @@ void reboot(void)
     write_idt((uint32_t)&fake_idt);
 
     int_enable();
-    asm volatile("int $48": : : "memory");
+    asm volatile("int $3": : : "memory");
 
     for (;;);
     __builtin_unreachable();
@@ -25,9 +25,7 @@ void halt(void)
 
     liballoc_dump();
 
-    int_set_raw_mask(0xFFFF);
-    int_disable();
-    asm volatile("hlt": : : "memory");
+    asm volatile("cli; hlt": : : "memory");
 
     for (;;);
     __builtin_unreachable();

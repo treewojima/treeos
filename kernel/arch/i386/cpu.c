@@ -237,30 +237,3 @@ void fill_idt(void)
     // ... and the syscall gate (48), with ring 3 privilege
     set_idt_gate(48, (uint32_t)isr48, KERN_CODE, IDT_USER_INT);
 }
-
-char *strcat_registers(char *buf, const struct registers *const registers)
-{
-    int pos = 0;
-    while (*(buf + pos) != '\0')
-        pos++;
-
-    pos += sprintf(buf + pos, "  eax=%x ebx=%x ecx=%x edx=%x\n",
-                   registers->eax, registers->ebx, registers->ecx,
-                   registers->edx);
-    pos += sprintf(buf + pos, "  ebp=%x esi=%x edi=%x\n",
-                   registers->ebp, registers->esi, registers->edi);
-    pos += sprintf(buf + pos, "  ds=%x es=%x fs=%x gs=%x\n",
-                   registers->ds, registers->es, registers->fs,
-                   registers->gs);
-    pos += sprintf(buf + pos, "  cs:eip=%x:%x\n",
-                   registers->cs, registers->eip);
-    pos += sprintf(buf + pos, "  ss:esp=%x:%x\n",
-                   registers->ss, registers->esp);
-    pos += sprintf(buf + pos, "  eflags=%x\n",
-                   registers->eflags);
-    pos += sprintf(buf + pos, "  int=%d err=%x\n",
-                   registers->int_num, registers->error_code);
-
-
-    return buf;
-}

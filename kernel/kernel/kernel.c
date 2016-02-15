@@ -3,7 +3,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
-#include <kernel/proc/sched.h>
+#include <kernel/proc/scheduler.h>
 #include <kernel/pmm.h>
 #include <kernel/timer.h>
 #include <kernel/tty.h>
@@ -62,20 +62,15 @@ void kmain(void)
     int_init();
     tss_init();
 
+    // Initialize physical memory allocator
+    pmm_init();
+
     // Initialize system timer and keyboard driver
     timer_init(DEFAULT_SYSTEM_TIMER_FREQ);
     //kbd_init();
 
-    // Initialize physical and virtual memory
-    pmm_init();
-    int_enable();
+    // Initialize the scheduling system
+    scheduler_init();
 
-#ifdef TEST
-    test_map_page();
-    test_malloc();
-#endif
-    sched_init();
-    test_usermode_stage1();
-
-    panic("end of kmain");
+    test_tasks();
 }

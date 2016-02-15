@@ -16,17 +16,27 @@
 
 struct process
 {
+    // Thread pointer must be the first member of this structure, or else
+    // thread bootstrapping code will break!
     struct thread *thread;
+
     struct page_dir_entry *pgdir;
     uint8_t flags;
+
+    uint32_t quantum;
 
     struct process *next;
 };
 
 // Process flags
-#define PROC_FREE (1 << 0)
+#define PROC_FREE        (1 << 0)
+#define PROC_DEBUG_YIELD (1 << 1)
+
+#define DEFAULT_QUANTUM 100
 
 struct process *process_create(struct process *process);
+
+void process_yield(void);
 
 
 
