@@ -1,3 +1,5 @@
+#include <arch/i386/proc/thread.h>
+
 .section .text
 
 .global scheduler_bootstrap_thread
@@ -12,17 +14,15 @@ scheduler_bootstrap_thread:
 
     # Set g_current_process to the passed pointer
     movl (%esp)            , %eax
-    movl $g_current_process, %edi
-    movl %eax              , (%edi)
+    movl %eax              , g_current_process
 
-    # The first member of the process structure is the thread structure pointer
-    movl (%eax), %ebp
+    # Grab a pointer to the thread context
+    movl (%eax), %edx
+    movl (%edx), %ebp
 
-    # Prepare the stack for the iret by reading from the thread's context
-    # structure
-
-    pushl 72(%ebp) # ss
-    pushl 68(%ebp) # esp
+    # Since we're bootstrapping a kernel thread, iret won't pop ss/esp off the
+    # stack - so just move the stack pointer to where the new stack will be
+    movl 28(%ebp), %esp
 
     # Twiddle eflags to re-enable interrupts after iret
     pushfl
@@ -35,3 +35,24 @@ scheduler_bootstrap_thread:
 
     # Jump into the thread
     iret
+
+.global scheduler_advance_stage2
+.type scheduler_advance_stage2, @function
+scheduler_advance_stage2:
+    # Set the stack pointer to the new process's stack
+    movl g_current_process, %eax
+    movl (%eax)           , %edx
+
+    # All this:
+    #movl (%edx)           , %ebp
+    #movl THREAD_CONTEXT_OFFSET(%ebp), %esp
+    # esp is the original value, so adjust it for the rest of the
+    # thread context
+    #subl $THREAD_CONTEXT_OFFSET, %esp
+
+    # Has the same effect as this:
+    movl (%edx), %esp
+
+    movl $0, g_switch_processes
+
+    jmp int_handler_stub_resume

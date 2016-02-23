@@ -1,4 +1,4 @@
-// Architecture-specific constants
+// Architecture-specific common constants
 
 #ifndef __TREEOS_KERNEL_ARCH_I386_CONST_H__
 #define __TREEOS_KERNEL_ARCH_I386_CONST_H__
@@ -15,6 +15,13 @@
 
 #include <limits.h>
 
+// Used primarily for extending bitmaps across multiple words
 #define BITS_PER_WORD (CHAR_BIT * sizeof(int))
+
+// Segment selectors
+#define KERN_CODE_SELECTOR 0x08
+#define KERN_DATA_SELECTOR 0x10
+#define USER_CODE_SELECTOR 0x18
+#define USER_DATA_SELECTOR 0x20
 
 #endif

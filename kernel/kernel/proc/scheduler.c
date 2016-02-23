@@ -1,25 +1,46 @@
 #include <kernel/proc/scheduler.h>
 
+#include <kernel/const.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/proc/process.h>
 #include <kernel/reboot.h>
 #include <kernel/vmm/heap.h> // for kheap boundaries
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct process *g_current_process;
 
+// Do these need to be volatile?
+bool g_preemption_enabled;
+bool g_switch_processes = false;
+
 static struct process *process_queue;
 
-// NOTE: rename/refactor this function
-static void irq0_handler(const struct thread_context *const context);
+// Scheduler mechanism:
+//     - interrupt handler is fired on a clock tick and pushes the current
+//       thread context onto the stack
+//     - tick handler updates process quantum and checks if a reschedule is
+//       needed
+//     - if process is flagged/due for preemption, call stage1
+//     - stage1 copies thread context into its control structure, selects the
+//       next process and returns to the interrupt handler
+//     - interrupt handler calls stage2 (only if preemption is enabled and
+//       we're actively switching to a different process)
+//     - stage2 moves the stack pointer to the stack of the "new" process and
+//       returns to the interrupt handler
+//     - interrupt handler finishes as it normally would, except as if it were
+//       the new process that was originally executing
+
+static void scheduler_tick(const struct thread_context *const context);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  PUBLIC FUNCTIONS                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Initialize the scheduling system
+ *
  * Parameters:
  *     none
  *
@@ -29,11 +50,13 @@ static void irq0_handler(const struct thread_context *const context);
 void scheduler_init(void)
 {
     process_queue = NULL;
+    g_preemption_enabled = true;
 
-    int_register_irq_handler(IRQ_PIT, irq0_handler);
+    int_register_irq_handler(IRQ_PIT, scheduler_tick);
 }
 
 /* Add a process to the scheduling queue
+ *
  * Parameters:
  *     process - pointer to process structure
  *
@@ -84,39 +107,80 @@ unlock_and_return:
     return ret;
 }
 
-/* Trigger the scheduler to "advance" to the next process
+/* Find the next best eligible process without updating process
+ * control structures
+ *
  * Parameters:
  *     none
  *
  * Returns:
- *     void
+ *     struct process * - pointer to found process
  */
-struct process *scheduler_advance(void)
+struct process *scheduler_find_next_best(void)
 {
     bool lock = int_lock_region();
 
     KASSERT(g_current_process);
-    struct process *next_process = g_current_process->next;
-    if (!next_process)
+
+    struct process *next = g_current_process->next;
+    if (!next)
     {
         // End of the queue, so start over at the beginning
-        g_current_process = process_queue;
-    }
-    else
-    {
-        g_current_process = next_process;
+        next = process_queue;
     }
 
     int_unlock_region(lock);
-    return g_current_process;
+    return next;
+}
+
+/* Update process control structures during the first phase of a context
+ * switch
+ *
+ * Parameters:
+ *     context - pointer to thread context on the stack
+ *
+ * Returns:
+ *     void
+ */
+void scheduler_advance_stage1(const struct thread_context *const context)
+{
+    // NOTE: Stack grows DOWNWARD, so double-check the kernel stack to make
+    //       sure that we're not overwriting anything!
+
+    bool lock = int_lock_region();
+
+    struct process *p = g_current_process;
+    p->flags &= ~PROC_DEBUG_YIELD;
+
+    // Check if is running in kernel mode, in which case no ss/esp values
+    // were pushed onto the interrupt stack frame
+    size_t size = sizeof(struct thread_context);
+    if (context->cs == KERN_CODE_SELECTOR)
+    {
+        size -= sizeof(context->user_esp) + sizeof(context->user_ss);
+    }
+
+    // Preserve stack address of thread context
+    if (p->flags & PROC_FREE_THREAD_CONTEXT)
+    {
+        p->flags &= ~PROC_FREE_THREAD_CONTEXT;
+        kfree(p->thread->context);
+    }
+    p->thread->context = (struct thread_context *)context;
+    //memcpy(&p->thread->context, context, size);
+
+    // Switch to a new process
+    g_current_process = scheduler_find_next_best();
+
+    int_unlock_region(lock);
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *  STATIC FUNCTIONS                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-// NOTE: rename/refactor this function
-void irq0_handler(const struct thread_context *const context)
+// Called on every clock tick
+void scheduler_tick(const struct thread_context *const context UNUSED)
 {
     bool lock = int_lock_region();
 
@@ -125,37 +189,11 @@ void irq0_handler(const struct thread_context *const context)
 
     if (p->flags & PROC_DEBUG_YIELD || p->quantum == 0)
     {
-        p->flags &= ~PROC_DEBUG_YIELD;
-
-        // NOTE: This code currently does NOT take into consideration that
-        //       the processor will NOT push the old esp/ss if there isn't a
-        //       privilege change! Since kernel tasks run in kernel mode,
-        //       the thread_context structure is filled incorrectly. Normally
-        //       this wouldn't be an issue (as long as ss/esp aren't used),
-        //       but when switching between contexts, copying one structure
-        //       to another WILL corrupt the stack!
-
-        // TODO: Perhaps implement a conditional that checks the pushed cs
-        //       register to see if we're coming from user or kernel mode
-
-        // TODO: Rename functions - irq0_handler should be something like
-        //       "scheduler_advance_stage1", and scheduler_advance would
-        //       become "scheduler_advance_stage2"
-
-        // First, preserve the current process's thread context
-        // NOTE: Try replacing this with a more efficient "register copy"
-        //       function that takes a pointer to a registers structure,
-        //       moves its own stack pointer to where that structure points,
-        //       and pushes all the necessary values in the correct order
-        memcpy(&p->thread->context, context, sizeof(struct thread_context));
-
-        // Next, advance to the next thread
-        p = scheduler_advance();
-
-        // Finally, copy the new thread's context into the location of the
-        // old one, so that the interrupt handler will jump to that thread
-        // NOTE: cast to void is necessary to get around const-ness
-        memcpy((void *)context, &p->thread->context, sizeof(struct thread_context));
+        // Only signal a context switch if there's multiple processes
+        if (process_queue->next)
+        {
+            g_switch_processes = true;
+        }
     }
 
     int_unlock_region(lock);

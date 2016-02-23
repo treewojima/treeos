@@ -11,43 +11,13 @@
 
 extern struct page_dir_entry *g_kernel_page_dir;
 
-static void init_idle_task(void);
 static void init_system_task(void);
 
 void test_tasks(void)
 {
     init_system_task();
-    init_idle_task();
 
     scheduler_bootstrap_thread(&g_kernel_system_task);
-}
-
-void init_idle_task(void)
-{
-    struct process *task = &g_kernel_idle_task;
-    memset(task, 0, sizeof(*task));
-
-    task->pgdir = g_kernel_page_dir;
-    task->quantum = DEFAULT_QUANTUM;
-    //task->next = &g_kernel_system_task;
-
-    task->thread = kcalloc(1, sizeof(struct thread));
-    KASSERT(task->thread);
-    task->thread->owner = task;
-
-    uint32_t esp = KHEAP_START - PAGE_SIZE;
-    struct page_table_entry pte = { 0 };
-    PANIC_IF(!page_alloc(&pte), "out of memory");
-    page_map(pte.address << 12, esp - PAGE_SIZE, true, false);
-
-    struct thread_context *c = &task->thread->context;
-    c->esp = esp;
-    c->eip = (uint32_t)&kernel_idle_task;
-    c->cs = 0x8;
-    c->ss = c->ds = c->es = c->fs = c->gs = 0x10;
-    c->eflags = read_eflags() | 0x200;
-
-    scheduler_add_process(task);
 }
 
 void init_system_task(void)
@@ -57,7 +27,6 @@ void init_system_task(void)
 
     task->pgdir = g_kernel_page_dir;
     task->quantum = DEFAULT_QUANTUM;
-    //task->next = &g_kernel_idle_task;
 
     task->thread = kcalloc(1, sizeof(struct thread));
     KASSERT(task->thread);
@@ -68,11 +37,14 @@ void init_system_task(void)
     PANIC_IF(!page_alloc(&pte), "out of memory");
     page_map(pte.address << 12, esp - PAGE_SIZE, true, false);
 
-    struct thread_context *c = &task->thread->context;
+    struct thread_context *c = kcalloc(1, sizeof(*c));
+    task->flags |= PROC_FREE_THREAD_CONTEXT;
+    task->thread->context = c;
+
     c->esp = esp;
     c->eip = (uint32_t)&kernel_system_task;
     c->cs = 0x8;
-    c->ss = c->ds = c->es = c->fs = c->gs = 0x10;
+    c->ds = c->es = c->fs = c->gs = 0x10;
     c->eflags = read_eflags() | 0x200;
 
     scheduler_add_process(task);

@@ -29,8 +29,9 @@ struct process
 };
 
 // Process flags
-#define PROC_FREE        (1 << 0)
-#define PROC_DEBUG_YIELD (1 << 1)
+#define PROC_FREE                (1 << 0)
+#define PROC_DEBUG_YIELD         (1 << 1)
+#define PROC_FREE_THREAD_CONTEXT (1 << 2)
 
 #define DEFAULT_QUANTUM 100
 

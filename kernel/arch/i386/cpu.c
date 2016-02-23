@@ -1,5 +1,7 @@
 #include <arch/i386/cpu.h>
+
 #include <arch/i386/proc/task.h> // for struct tss_entry
+#include <kernel/const.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <stdio.h>
@@ -48,12 +50,8 @@ struct gdt_entry
 #define GDT_DEFAULT_GRAN (GDT_GRAN_PAGE | GDT_GRAN_32BIT)
 #define GDT_TSS_GRAN     (GDT_GRAN_AVAILABLE)
 
-// GDT selector offsets
+// Null entry + kernel data/code + user data/code + TSS
 #define NUM_GDT_ENTRIES 6
-#define KERN_CODE 0x08
-#define KERN_DATA 0x10
-#define USER_CODE 0x18
-#define USER_DATA 0x20
 
 // Entry in the interrupt descriptor table
 struct idt_entry
@@ -183,57 +181,57 @@ void fill_idt(void)
 {
     // Initialize gates 0-31
     // NOTE: This can probably be done more elegantly, but this works fine
-    set_idt_gate(0,  (uint32_t)isr0,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(1,  (uint32_t)isr1,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(2,  (uint32_t)isr2,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(3,  (uint32_t)isr3,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(4,  (uint32_t)isr4,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(5,  (uint32_t)isr5,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(6,  (uint32_t)isr6,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(7,  (uint32_t)isr7,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(8,  (uint32_t)isr8,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(9,  (uint32_t)isr9,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(10, (uint32_t)isr10, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(11, (uint32_t)isr11, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(12, (uint32_t)isr12, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(13, (uint32_t)isr13, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(14, (uint32_t)isr14, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(15, (uint32_t)isr15, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(16, (uint32_t)isr16, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(17, (uint32_t)isr17, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(18, (uint32_t)isr18, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(19, (uint32_t)isr19, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(20, (uint32_t)isr20, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(21, (uint32_t)isr21, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(22, (uint32_t)isr22, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(23, (uint32_t)isr23, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(24, (uint32_t)isr24, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(25, (uint32_t)isr25, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(26, (uint32_t)isr26, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(27, (uint32_t)isr27, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(28, (uint32_t)isr28, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(29, (uint32_t)isr29, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(30, (uint32_t)isr30, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(31, (uint32_t)isr31, KERN_CODE, IDT_KERN_INT);
+    set_idt_gate(0,  (uint32_t)isr0,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(1,  (uint32_t)isr1,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(2,  (uint32_t)isr2,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(3,  (uint32_t)isr3,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(4,  (uint32_t)isr4,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(5,  (uint32_t)isr5,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(6,  (uint32_t)isr6,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(7,  (uint32_t)isr7,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(8,  (uint32_t)isr8,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(9,  (uint32_t)isr9,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(10, (uint32_t)isr10, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(11, (uint32_t)isr11, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(12, (uint32_t)isr12, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(13, (uint32_t)isr13, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(14, (uint32_t)isr14, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(15, (uint32_t)isr15, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(16, (uint32_t)isr16, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(17, (uint32_t)isr17, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(18, (uint32_t)isr18, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(19, (uint32_t)isr19, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(20, (uint32_t)isr20, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(21, (uint32_t)isr21, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(22, (uint32_t)isr22, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(23, (uint32_t)isr23, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(24, (uint32_t)isr24, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(25, (uint32_t)isr25, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(26, (uint32_t)isr26, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(27, (uint32_t)isr27, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(28, (uint32_t)isr28, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(29, (uint32_t)isr29, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(30, (uint32_t)isr30, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(31, (uint32_t)isr31, KERN_CODE_SELECTOR, IDT_KERN_INT);
 
     // ... and gates 32-47 (our IRQs)
-    set_idt_gate(32, (uint32_t)irq0,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(33, (uint32_t)irq1,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(34, (uint32_t)irq2,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(35, (uint32_t)irq3,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(36, (uint32_t)irq4,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(37, (uint32_t)irq5,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(38, (uint32_t)irq6,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(39, (uint32_t)irq7,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(40, (uint32_t)irq8,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(41, (uint32_t)irq9,  KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(42, (uint32_t)irq10, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(43, (uint32_t)irq11, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(44, (uint32_t)irq12, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(45, (uint32_t)irq13, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(46, (uint32_t)irq14, KERN_CODE, IDT_KERN_INT);
-    set_idt_gate(47, (uint32_t)irq15, KERN_CODE, IDT_KERN_INT);
+    set_idt_gate(32, (uint32_t)irq0,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(33, (uint32_t)irq1,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(34, (uint32_t)irq2,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(35, (uint32_t)irq3,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(36, (uint32_t)irq4,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(37, (uint32_t)irq5,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(38, (uint32_t)irq6,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(39, (uint32_t)irq7,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(40, (uint32_t)irq8,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(41, (uint32_t)irq9,  KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(42, (uint32_t)irq10, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(43, (uint32_t)irq11, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(44, (uint32_t)irq12, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(45, (uint32_t)irq13, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(46, (uint32_t)irq14, KERN_CODE_SELECTOR, IDT_KERN_INT);
+    set_idt_gate(47, (uint32_t)irq15, KERN_CODE_SELECTOR, IDT_KERN_INT);
 
     // ... and the syscall gate (48), with ring 3 privilege
-    set_idt_gate(48, (uint32_t)isr48, KERN_CODE, IDT_USER_INT);
+    set_idt_gate(48, (uint32_t)isr48, KERN_CODE_SELECTOR, IDT_USER_INT);
 }

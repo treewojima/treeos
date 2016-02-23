@@ -19,7 +19,7 @@ char *strcat_registers(char *buf, const struct thread_context *const context)
     pos += sprintf(buf + pos, "  cs:eip=%x:%x\n",
                    context->cs, context->eip);
     pos += sprintf(buf + pos, "  ss:esp=%x:%x\n",
-                   context->ss, context->esp);
+                   context->user_ss, context->esp);
     pos += sprintf(buf + pos, "  eflags=%x\n",
                    context->eflags);
     pos += sprintf(buf + pos, "  int=%d err=%x\n",

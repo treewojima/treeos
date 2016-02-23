@@ -14,6 +14,7 @@
 #include <stdbool.h>
 
 struct process;
+struct thread_context;
 
 // Initialize the scheduling system
 void scheduler_init(void);
@@ -21,7 +22,10 @@ void scheduler_init(void);
 // Add a process to the queue
 bool scheduler_add_process(struct process *p);
 
-// Advance the scheduler (i.e., jump to the next process)
-struct process *scheduler_advance(void);
+// Find the next best process to switch to
+struct process *scheduler_find_next_best(void);
+
+// Only ever called from the interrupt handler
+void scheduler_advance_stage1(const struct thread_context *const context);
 
 #endif

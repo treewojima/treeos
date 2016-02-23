@@ -4,7 +4,7 @@
 .type int_handler_stub, @function
 int_handler_stub:
     # Preserve the interrupted thread context
-    pushal    # eax, ecx, edx, ebx, esp (current, not thread), ebp, esi, edi
+    pushal    # eax, ecx, edx, ebx, esp, ebp, esi, edi
     pushl %ds
     pushl %es
     pushl %fs
@@ -29,14 +29,36 @@ int_handler_stub:
     call *%ebx
     addl $4, %esp
 
-    # Reload original registers, clean up stack and return
+    # If preemption isn't enabled, there's no need to check if rescheduling
+    # is necessary
+    cmpl $0, g_preemption_enabled
+    je int_handler_stub_resume
+
+    # Switch processes
+    cmpl $0, g_switch_processes
+    je int_handler_stub_resume
+    pushl %esp
+    call scheduler_advance_stage1 # preserves thread context
+    addl $4, %esp
+    jmp scheduler_advance_stage2  # switches stack pointer to new process
+
+    # Fall through
+
+.global int_handler_stub_resume
+.type int_handler_stub_resume, @function
+int_handler_stub_resume:
+
+    # Reload preserved registers from stack
     popl %gs
     popl %fs
     popl %es
     popl %ds
     popal
+
+    # Ignore interrupt number and error code
     addl $8, %esp
-    #sti
+
+    # Jump back into the interrupted thread
     iret
 
 # Macro-defined interrupt functions
@@ -46,7 +68,6 @@ int_handler_stub:
     .align 8
     .type isr\inum, @function
     isr\inum:
-        #cli
         pushl $0xDEADBEEF
         pushl $(\inum)
         jmp int_handler_stub
@@ -57,7 +78,6 @@ int_handler_stub:
     .align 8
     .type isr\inum, @function
     isr\inum:
-        #cli
         pushl $(\inum)
         jmp int_handler_stub
 .endm
@@ -67,7 +87,6 @@ int_handler_stub:
     .align 8
     .type irq\irqnum, @function
     irq\irqnum:
-        #cli
         pushl $0xDEADBEEF
         pushl $(\inum)
         jmp int_handler_stub
