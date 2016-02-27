@@ -38,7 +38,7 @@ DEPFILES       := $(patsubst %.c, %.d, $(ALL_CSOURCES)) \
 				  $(patsubst %.o, %.d, $(CRTN_OBJ))
 
 KLIBC_TARGET   := $(LIBDIR)/libklibc.a
-KERNEL_TARGET  := $(BOOTDIR)/kernel.elf
+KERNEL_TARGET  := $(BOOTDIR)/kernel
 ISO_TARGET     := $(PWD)/treeos.iso
 GRUB_CFG_FILE  := $(BOOTDIR)/grub/grub.cfg
 
@@ -99,7 +99,7 @@ install-grub:
 	@echo "set default=0" > $(GRUB_CFG_FILE)
 	@echo "set timeout=1" >> $(GRUB_CFG_FILE)
 	@echo "menuentry \"treeos\" {" >> $(GRUB_CFG_FILE)
-	@echo "    multiboot /boot/kernel.elf" >> $(GRUB_CFG_FILE)
+	@echo "    multiboot /boot/kernel" >> $(GRUB_CFG_FILE)
 	@echo "}" >> $(GRUB_CFG_FILE)
 
 $(ISO_TARGET): kernel install-grub
