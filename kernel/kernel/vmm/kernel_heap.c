@@ -92,7 +92,7 @@ void *liballoc_alloc(size_t pages)
 int liballoc_free(void *block, size_t pages)
 {
     KASSERT(block);
-    KASSERT(PAGE_ALIGNED(block));
+    KASSERT(IS_PAGE_ALIGNED(block));
 
     if (!pages)
     {

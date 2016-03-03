@@ -33,12 +33,12 @@ g_kernel_page_table:
 
 # The kernel bootstrap stack
 #.section .bootstrap_stack, "aw", @nobits
-.global g_stack_bottom
-g_stack_bottom:
+.global g_kernel_stack_bottom
+g_kernel_stack_bottom:
     #.skip 0x4000 # 16 KiB
     .space 0x4000, 0x00
-.global g_stack_top
-g_stack_top:
+.global g_kernel_stack_top
+g_kernel_stack_top:
 
 msg_panic:
     .asciz "PANIC!"
@@ -61,27 +61,17 @@ msg_function_name:
 .type _start, @function
 _start:
     # Set the stack/base pointers to account for the offset into the higher half
-    movl $g_stack_top    , %esp
-    subl $KERNEL_HIGH_VMA, %esp
-    #movl %esp               , %ebp
+    movl $g_kernel_stack_top  , %esp
+    subl $g_kernel_high_offset, %esp
 
     # Initialize the bootstrap paging mechanism
     call init_bootstrap_paging
 
     # Adjust stack/base pointers to the proper virtual address
-    addl $KERNEL_HIGH_VMA, %esp
-    movl %esp            , %ebp
+    addl $g_kernel_high_offset, %esp
+    movl %esp              , %ebp
 
-    # Skip gdb_start for now
     jmp higher_half_start
-
-.global gdb_start
-.type gdb_start, @function
-gdb_start:
-
-    leal (higher_half_start), %ecx
-    addl $KERNEL_HIGH_VMA   , %ecx
-    jmp  *%ecx
 
 .global higher_half_start
 .type higher_half_start, @function
@@ -152,30 +142,29 @@ init_bootstrap_paging:
     pushl %edx
     pushl %ecx
 
-    movl  $g_kernel_page_dir, %eax
-    subl  $KERNEL_HIGH_VMA  , %eax
+    movl  $g_kernel_page_dir   , %eax
+    subl  $g_kernel_high_offset, %eax
 
-    #movl $g_kernel_low_page_table, %ebx
-    movl $g_kernel_page_table, %ebx
-    subl $KERNEL_HIGH_VMA    , %ebx
-    orl  $0x7                , %ebx
-    movl %ebx                , (%eax)
+    movl $g_kernel_page_table , %ebx
+    subl $g_kernel_high_offset, %ebx
+    orl  $0x7                 , %ebx
+    movl %ebx                 , (%eax)
 
     pushl %eax
-    movl  $KERNEL_HIGH_VMA, %eax
-    shrl  $22             , %eax
-    movl  $4              , %ecx
+    movl  $g_kernel_high_offset, %eax
+    shrl  $22                  , %eax
+    movl  $4                   , %ecx
     mull  %ecx
-    movl  %eax            , %edx
+    movl  %eax                 , %edx
     popl  %eax
 
     pushl %eax
     addl  %edx, %eax
 
-    movl $g_kernel_page_table, %ebx
-    subl $KERNEL_HIGH_VMA    , %ebx
-    orl  $0x7                , %ebx
-    movl %ebx                , (%eax)
+    movl $g_kernel_page_table , %ebx
+    subl $g_kernel_high_offset, %ebx
+    orl  $0x7                 , %ebx
+    movl %ebx                 , (%eax)
 
     popl %ebx
     movl $0x100000, %ecx
@@ -185,16 +174,16 @@ init_bootstrap_paging:
         subl $0x1000, %ecx
         jnz  idmap_first_mb_loop
 
-    movl $KERNEL_BOOT_VMA, %ecx
-    movl $g_kernel_end   , %eax
-    subl $KERNEL_HIGH_VMA, %eax
+    movl $g_kernel_boot_addr  , %ecx
+    movl $g_kernel_end        , %eax
+    subl $g_kernel_high_offset, %eax
 
     map_kernel:
         movl %ecx, %edx
         call map_page
 
         pushl %ecx
-        addl  $KERNEL_HIGH_VMA, %ecx
+        addl  $g_kernel_high_vma, %ecx
         call  map_page
         popl  %ecx
 

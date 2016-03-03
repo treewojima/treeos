@@ -367,7 +367,7 @@ static void syscall_int_handler(const struct thread_context *const context)
     {
     case 1:
         {
-            char *str = (char *)context->eax;
+            char *str = (char *)context->ecx;
             tty_puts(str, true);
         }
         break;

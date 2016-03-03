@@ -21,6 +21,7 @@ enum
 
 // Terminal driver initialization/clearing
 void tty_init(void);
+void tty_remap(void);
 void tty_clear(void);
 
 // Printing functions

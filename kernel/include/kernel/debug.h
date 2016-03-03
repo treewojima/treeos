@@ -7,6 +7,8 @@
 #   error this include is not meant to be used for assembly source files
 #endif
 
+#include <arch/i386/debug.h>
+
 #ifndef TREEOS_DEBUG
 #   define KASSERT(cond)
 #   define KASSERT_MSG(cond, msg)

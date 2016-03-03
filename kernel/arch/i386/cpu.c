@@ -119,8 +119,7 @@ void gdt_init(void)
     set_gdt_gate(4, 0, 0xFFFFF, GDT_USER_DATA, GDT_DEFAULT_GRAN);
 
     // Set up TSS
-    extern struct tss_entry kernel_tss;
-    set_gdt_gate(5, (uint32_t)&kernel_tss, sizeof(kernel_tss),
+    set_gdt_gate(5, (uint32_t)&g_kernel_tss, sizeof(g_kernel_tss),
                  GDT_USER_TSS, GDT_TSS_GRAN);
 
     write_gdt((uint32_t)&gdt_ptr);

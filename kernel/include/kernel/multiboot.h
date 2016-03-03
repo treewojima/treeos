@@ -22,6 +22,8 @@
 #ifndef MULTIBOOT_HEADER
 #define MULTIBOOT_HEADER 1
 
+#include <defines.h>
+
 /* How many bytes from the start of the file we search for the header.  */
 #define MULTIBOOT_SEARCH			8192
 #define MULTIBOOT_HEADER_ALIGN			4
@@ -89,7 +91,7 @@
 #define MULTIBOOT_INFO_VBE_INFO		        0x00000800
 #define MULTIBOOT_INFO_FRAMEBUFFER_INFO	        0x00001000
 
-#ifndef TREEOS_EXPORT_ASM
+#ifndef ASM_FILE
 
 typedef unsigned char		multiboot_uint8_t;
 typedef unsigned short		multiboot_uint16_t;
@@ -238,7 +240,7 @@ struct multiboot_mmap_entry
 #define MULTIBOOT_MEMORY_NVS                    4
 #define MULTIBOOT_MEMORY_BADRAM                 5
   multiboot_uint32_t type;
-} GRUB_PACKED;
+} PACKED;
 typedef struct multiboot_mmap_entry multiboot_memory_map_t;
 
 struct multiboot_mod_list
@@ -268,6 +270,10 @@ struct multiboot_apm_info
   multiboot_uint16_t cseg_16_len;
   multiboot_uint16_t dseg_len;
 };
+
+#ifdef TREEOS_GLOBAL_MULTIBOOT_INFO
+extern const struct multiboot_info g_multiboot_info;
+#endif
 
 #endif /* ! ASM_FILE */
 

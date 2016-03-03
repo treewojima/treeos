@@ -8,7 +8,6 @@
 #   error included i386-specific header (cpu.h) in non-i386 build
 #endif
 
-// Only because <limits.h> is included
 #ifdef TREEOS_EXPORT_ASM
 #   error this include is not meant to be used for assembly source files
 #endif

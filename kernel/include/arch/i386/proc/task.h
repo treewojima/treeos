@@ -26,6 +26,8 @@ struct tss_entry
     uint32_t unused[23];
 } PACKED;
 
+extern struct tss_entry g_kernel_tss;
+
 void tss_init(void);
 
 #endif

@@ -33,6 +33,7 @@ uint32_t read_cr3(void);
 void write_cr3(uint32_t value);
 
 uint32_t read_eflags(void);
+uint32_t read_esp(void);
 
 void jump_usermode_c(void);
 

@@ -12,7 +12,6 @@
 
 #ifndef TREEOS_EXPORT_ASM
 
-#include <arch/i386/pmm/paging.h>
 #include <stdint.h>
 
 // Thread context of execution

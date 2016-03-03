@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern struct page_dir_entry *g_kernel_page_dir;
-
 static void init_system_task(void);
 
 void test_tasks(void)

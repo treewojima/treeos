@@ -10,9 +10,10 @@ void kernel_idle_task(void)
 {
     for (;;)
     {
-        //bool lock = int_lock_region();
-        printf("idle task\n");
-        //int_unlock_region(lock);
         process_yield();
+        while (g_kernel_idle_task.flags & PROC_DEBUG_YIELD)
+        {
+            asm volatile("hlt": : : "memory");
+        }
     }
 }

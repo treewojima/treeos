@@ -1,9 +1,8 @@
 #include <kernel/proc/process.h>
 
 #include <kernel/interrupt.h>
+#include <kernel/proc/scheduler.h>
 #include <stdlib.h>
-
-extern struct process *g_current_process;
 
 struct process *process_create(struct process *process)
 {

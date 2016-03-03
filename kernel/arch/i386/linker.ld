@@ -3,14 +3,14 @@
 
 OUTPUT_FORMAT(elf32-i386)
 ENTRY(_start)
-KERNEL_BOOT_VMA = 0x00100000;
-KERNEL_HIGH_VMA = 0xC0000000;
+g_kernel_boot_addr   = 0x00100000;
+g_kernel_high_offset = 0xC0000000;
 
 /* Tell where the various sections of the object files will be put in the final
  * kernel image */
 SECTIONS
 {
-    . = KERNEL_BOOT_VMA;
+    . = g_kernel_boot_addr;
 
     /* Multiboot header and bootstrap .text */
     .boot :
@@ -20,11 +20,11 @@ SECTIONS
     }
 
     /* Skip ahead to higher half address */
-    . += KERNEL_HIGH_VMA;
+    . += g_kernel_high_offset;
     g_kernel_start = .;
 
     /* Multiboot header and .text */
-    .text ALIGN(0x1000) : AT(ADDR(.text) - KERNEL_HIGH_VMA)
+    .text ALIGN(0x1000) : AT(ADDR(.text) - g_kernel_high_offset)
     {
         g_kernel_code = .;
         *(EXCLUDE_FILE(*/boot.o) .text)
@@ -33,7 +33,7 @@ SECTIONS
     }
 
     /* Read-write data (initialized) */
-    .data ALIGN(0x1000) : AT(ADDR(.data) - KERNEL_HIGH_VMA)
+    .data ALIGN(0x1000) : AT(ADDR(.data) - g_kernel_high_offset)
     {
         g_kernel_data = .;
         *(.data)
@@ -41,7 +41,7 @@ SECTIONS
 
     /* Read-write data (uninitialized) and stack */
     /*.bss BLOCK(0x1000) : ALIGN(0x1000)*/
-    .bss ALIGN(0x1000) : AT(ADDR(.bss) - KERNEL_HIGH_VMA)
+    .bss ALIGN(0x1000) : AT(ADDR(.bss) - g_kernel_high_offset)
     {
         g_bss_start = . ;
         

@@ -7,6 +7,7 @@
 #include <kernel/vmm/heap.h>
 #include <kernel/util/bitmap.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static uint32_t page_count;
@@ -103,11 +104,11 @@ void page_free(struct page_table_entry *page)
 void page_map(uint32_t physaddr,
               uint32_t virtualaddr,
               bool rw,
-              bool user UNUSED)
+              bool user)
 {
-    PANIC_IF(!PAGE_ALIGNED(physaddr),
+    PANIC_IF(!IS_PAGE_ALIGNED(physaddr),
              "physical address is not page-aligned");
-    PANIC_IF(!PAGE_ALIGNED(virtualaddr),
+    PANIC_IF(!IS_PAGE_ALIGNED(virtualaddr),
              "virtual address is not page-aligned");
     PANIC_IF(!bitmap_test_bit(&page_bitmap, physaddr >> PAGE_SIZE_SHIFT),
              "mapping page that is not allocated in page_bitmap");
@@ -144,7 +145,7 @@ void page_map(uint32_t physaddr,
     {
         pte[pgtbl_index].present = 1;
         pte[pgtbl_index].rw = rw;
-        pte[pgtbl_index].user = 1;//user;
+        pte[pgtbl_index].user = user;
         pte[pgtbl_index].address = physaddr >> 12;
     }
 
@@ -153,7 +154,7 @@ void page_map(uint32_t physaddr,
 
 void page_unmap(uint32_t virtualaddr)
 {
-    PANIC_IF(!PAGE_ALIGNED(virtualaddr),
+    PANIC_IF(!IS_PAGE_ALIGNED(virtualaddr),
              "virtual address is not page-aligned");
 
     uint32_t pgdir_index = (uint32_t)virtualaddr >> 22;
@@ -186,4 +187,24 @@ void page_unmap(uint32_t virtualaddr)
     // It's like it was never there...
     memset(&pte[pgtbl_index], 0, sizeof(*pte));
     flush_tlb(virtualaddr);
+}
+
+struct page_dir_entry *page_dir_alloc(struct page_dir_entry *dir)
+{
+    // Create a new paging directory if necessary
+    if (!dir)
+    {
+        struct page_table_entry *pte = { 0 };
+        PANIC_IF(!page_alloc(pte), "out of memory");
+        dir = (struct page_dir_entry *)(pte->address << 12);
+    }
+
+    KASSERT(IS_PAGE_ALIGNED(dir));
+
+    return dir;
+}
+
+void page_dir_free(struct page_dir_entry *dir)
+{
+    kfree(dir);
 }

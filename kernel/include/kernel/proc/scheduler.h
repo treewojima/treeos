@@ -11,10 +11,10 @@
 #   include <arch/i386/proc/scheduler.h>
 #endif
 
+#include <kernel/proc/process.h>
 #include <stdbool.h>
 
-struct process;
-struct thread_context;
+extern struct process *g_current_process;
 
 // Initialize the scheduling system
 void scheduler_init(void);

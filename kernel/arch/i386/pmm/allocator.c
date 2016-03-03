@@ -1,6 +1,7 @@
 #include <arch/i386/pmm/allocator.h>
 
 #include <arch/i386/pmm/paging.h>
+#include <kernel/const.h>
 #include <kernel/debug.h>
 #include <string.h>
 
@@ -9,13 +10,12 @@ static uint32_t placement_heap;
 void paging_allocator_init(void)
 {
     // Set the placement heap to begin at the next page after the kernel tail
-    extern uint8_t g_kernel_end;
-    placement_heap = ((uint32_t)&g_kernel_end & 0xFFFFF000) + PAGE_SIZE;
+    placement_heap = (KERN_END & 0xFFFFF000) + PAGE_SIZE;
 }
 
 void *paging_structure_alloc(void)
 {
-    KASSERT(PAGE_ALIGNED(placement_heap));
+    KASSERT(IS_PAGE_ALIGNED(placement_heap));
 
     // First, allocate a free page
     struct page_table_entry pte = { 0 };

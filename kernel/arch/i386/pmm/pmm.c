@@ -3,6 +3,7 @@
 #include <arch/i386/cpu.h>
 #include <arch/i386/pmm/allocator.h>
 #include <arch/i386/pmm/paging.h>
+#include <kernel/const.h>
 #include <kernel/interrupt.h>
 #include <kernel/multiboot.h>
 #include <kernel/panic.h>
@@ -21,6 +22,7 @@ static void reinit_paging(void);
 #endif
 
 static void parse_memory_map(const struct multiboot_info *const mbi);
+static void preserve_modules(const struct multiboot_info *const mbi);
 static void page_fault_int_handler(const struct thread_context *const context);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -39,26 +41,28 @@ void pmm_init(void)
     // Make sure we can use GRUB's memory information
     extern const struct multiboot_info g_multiboot_info;
     const struct multiboot_info *const mbi = &g_multiboot_info;
-    PANIC_IF(!((mbi->flags & MULTIBOOT_INFO_MEMORY)),
+    PANIC_IF(!(mbi->flags & MULTIBOOT_INFO_MEMORY),
              "Multiboot header does not include memory size information");
-    PANIC_IF(!((mbi->flags & MULTIBOOT_INFO_MEM_MAP)),
+    PANIC_IF(!(mbi->flags & MULTIBOOT_INFO_MEM_MAP),
              "Multiboot header does not include memory map information");
 
     printf("mem_lower = %u KiB\n", mbi->mem_lower);
     printf("mem_upper = %u KiB\n", mbi->mem_upper);
     printf("mem_total = %u KiB\n", mbi->mem_lower + mbi->mem_upper);
 
-    // Initialize physical memory map
+    // Initialize physical memory bitmap
     paging_init_bitmap((mbi->mem_lower + mbi->mem_upper) * 1024);
 
     // Loop through the memory map that GRUB provides from the BIOS
     parse_memory_map(mbi);
 
     // Make sure the kernel's location in physical memory isn't marked as free
-    extern uint8_t g_kernel_start, g_kernel_end, KERNEL_HIGH_VMA;
-    uint32_t real_kernel_start = (uint32_t)&g_kernel_start - (uint32_t)&KERNEL_HIGH_VMA;
-    uint32_t real_kernel_end = (uint32_t)&g_kernel_end - (uint32_t)&KERNEL_HIGH_VMA;
+    uint32_t real_kernel_start = KERN_START - KERN_HIGH_OFFSET;
+    uint32_t real_kernel_end = KERN_END - KERN_HIGH_OFFSET;
     paging_deinit_region(real_kernel_start, real_kernel_end - real_kernel_start);
+
+    // Also make sure that any modules passed through GRUB are preserved
+    preserve_modules(mbi);
 
 #ifndef USE_BOOTSTRAP_PAGING
     reinit_paging();
@@ -116,6 +120,28 @@ static void parse_memory_map(const struct multiboot_info *const mbi)
 
         mmap = (struct multiboot_mmap_entry *)
                 ((uint32_t)mmap + mmap->size + sizeof(mmap->size));
+    }
+}
+
+static void preserve_modules(const struct multiboot_info *const mbi)
+{
+    // If there's a positive module count but no module information flag set,
+    // then something's very wrong
+    PANIC_IF(mbi->mods_count && !(mbi->flags & MULTIBOOT_INFO_MODS),
+             "Multiboot header does not include module information");
+
+    // Loop through each module and mark its memory location as unavailable
+    struct multiboot_mod_list *mod =
+            (struct multiboot_mod_list *)mbi->mods_addr;
+    for (uint32_t i = 0; i < mbi->mods_count; i++, mod++)
+    {
+        KASSERT(mod);
+
+        printf("module found in region from %p to %p\n",
+               mod->mod_start,
+               mod->mod_end);
+
+        paging_deinit_region(mod->mod_start, mod->mod_end - mod->mod_start - 1);
     }
 }
 

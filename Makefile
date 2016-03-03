@@ -100,6 +100,7 @@ install-grub:
 	@echo "set timeout=1" >> $(GRUB_CFG_FILE)
 	@echo "menuentry \"treeos\" {" >> $(GRUB_CFG_FILE)
 	@echo "    multiboot /boot/kernel" >> $(GRUB_CFG_FILE)
+	@echo "    module    /boot/init --init" >> $(GRUB_CFG_FILE)
 	@echo "}" >> $(GRUB_CFG_FILE)
 
 $(ISO_TARGET): kernel install-grub

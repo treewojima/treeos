@@ -1,6 +1,9 @@
 #include <kernel/tasks/system.h>
 
+#include <kernel/elf/elf32.h>
 #include <kernel/interrupt.h>
+#include <kernel/module.h>
+#include <kernel/multiboot.h>
 #include <kernel/proc/process.h>
 #include <kernel/proc/scheduler.h>
 #include <kernel/tasks/idle.h>
@@ -15,21 +18,28 @@
         *((type *)(context)->esp) = (value); \
     } while (0)
 
-extern struct page_dir_entry *g_kernel_page_dir;
-
 struct process g_kernel_system_task;
 
 static void init_idle_task(void);
+static void init_init_task(void);
+static uint32_t get_init_entry(void);
 
 void kernel_system_task(void)
 {
     // Create the idle task
     init_idle_task();
 
+    // Load init
+    //init_init_task();
+    get_init_entry();
+
+    panic("lol");
+
     for (;;)
     {
         //bool lock = int_lock_region();
-        printf("system task\n");
+        printf("system task: ");
+        dbg_print_esp();
         //int_unlock_region(lock);
         process_yield();
     }
@@ -77,4 +87,65 @@ void init_idle_task(void)
     scheduler_add_process(task);
 
     int_unlock_region(lock);
+}
+
+#if 0
+void init_init_task(void)
+{
+    bool lock = int_lock_region();
+
+    struct process *task = kcalloc(1, sizeof(*task));
+
+    task->pgdir = g_kernel_page_dir;
+    task->quantum = DEFAULT_QUANTUM;
+    task->flags |= PROC_FREE;
+
+    task->thread = kcalloc(1, sizeof(struct thread));
+    KASSERT(task->thread);
+    task->thread->owner = task;
+
+    uint32_t esp = KHEAP_START - PAGE_SIZE * 5;
+    struct page_table_entry pte = { 0 };
+    PANIC_IF(!page_alloc(&pte), "out of memory");
+    page_map(pte.address << 12, esp - PAGE_SIZE, true, false);
+
+    struct thread_context c = { 0 };
+
+    c.eip = get_init_entry();
+    c.cs = 0x8;
+    c.ds = c.es = c.fs = c.gs = 0x10;
+    c.eflags = read_eflags() | 0x200;
+
+    // Pad the stack with some expected values for the interrupt handler,
+    // so that it looks like the the thread was interrupted and will resume
+    // right where it's supposed to start
+    esp -= sizeof(c) - 8;
+    c.esp = esp + THREAD_CONTEXT_OFFSET;
+    memcpy((void *)esp, &c, sizeof(c) - 8);
+    task->thread->context = (struct thread_context *)esp;
+
+    scheduler_add_process(p);
+
+    int_unlock_region(lock);
+}
+#endif
+
+uint32_t get_init_entry(void)
+{
+    struct Elf32_Ehdr *hdr = get_module_by_name("init");
+    KASSERT(hdr);
+
+    for (uint32_t i = 0; i < hdr->e_phnum; i++)
+    {
+        struct Elf32_Phdr *prog_hdr = (struct Elf32_Phdr *)
+                ((uint32_t)hdr + hdr->e_phoff + i * hdr->e_phentsize);
+
+        if (prog_hdr->p_type != PT_LOAD) continue;
+
+
+    }
+
+    panic("lol");
+
+    return 0;
 }

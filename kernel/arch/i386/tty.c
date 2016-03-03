@@ -3,15 +3,23 @@
 #include <arch/i386/ioport.h>
 #include <kernel/debug.h>
 #include <kernel/interrupt.h>
+#include <kernel/pmm.h>
 #include <stdbool.h>
+#include <string.h>
+
+// Phsyical address ranges of text buffer
+#define VGA_TEXT_BUFFER_START 0xB8000
+#define VGA_TEXT_BUFFER_END   0xBFFFF
+
+// High address offset
+#define IO_MMAP_HIGH_OFFSET 0xF0000000
 
 // Maximum screen size
 static const size_t VGA_WIDTH = 80, VGA_HEIGHT = 24;
 
-// Physical address of VGA screen buffer
-static volatile uint16_t *const tty_buf =
-        (volatile uint16_t *const)0xB8000;
-        //(volatile uint16_t *const)(0xB8000 + &KERNEL_HIGH_VMA);
+// Pointer to video memory
+static volatile uint16_t *tty_buf =
+    (volatile uint16_t *)VGA_TEXT_BUFFER_START;
 
 // Current position
 static size_t tty_row, tty_col;
@@ -34,10 +42,46 @@ static void scroll(void);
 void tty_init(void)
 {
     static bool initialized = false;
-
     WORRY_IF(initialized, "tty driver is already initialized");
+
     tty_clear();
+
     initialized = true;
+}
+
+/* Remap memory-mapped IO addresses to high kernel memory
+ * Parameters:
+ *     none
+ *
+ * Returns:
+ *     void
+ */
+void tty_remap(void)
+{
+    const uint32_t low_tty_buf = (uint32_t)tty_buf;
+    const uint32_t high_tty_buf = low_tty_buf + IO_MMAP_HIGH_OFFSET;
+
+    uint32_t pages = VGA_TEXT_BUFFER_END - VGA_TEXT_BUFFER_START;
+    pages = PAGE_ALIGN_UP(pages);
+    pages >>= PAGE_SIZE_SHIFT;
+
+    // First, map the high address pages
+    for (uint32_t page = 0; page < pages; page++)
+    {
+        page_map(low_tty_buf + (page << PAGE_SIZE_SHIFT),
+                 high_tty_buf + (page << PAGE_SIZE_SHIFT),
+                 true, false);
+    }
+
+    // Set the text buffer pointer to the new high address
+    tty_buf = (uint16_t *)high_tty_buf;
+
+    // Next, unmap low pages - this needs to be done outside the mapping loop
+    // in case something goes wrong, so that any error messages are printed
+    for (uint32_t page = 0; page < pages; page++)
+    {
+        page_unmap(low_tty_buf + (page << PAGE_SIZE_SHIFT));
+    }
 }
 
 /* Clear the screen (by filling it with blank characters)

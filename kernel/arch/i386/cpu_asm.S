@@ -165,3 +165,17 @@ read_eflags:
     pushfl
     popl %eax
     ret
+
+# Read the value of the stack pointer, adjusted to its value before
+# this function call
+# Parameters:
+#     none
+#
+# Returns:
+#     uint32_t
+#
+.global read_esp
+.type read_esp, @function
+read_esp:
+    leal 4(%esp), %eax
+    ret

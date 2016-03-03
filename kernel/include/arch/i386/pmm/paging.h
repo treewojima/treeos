@@ -11,7 +11,9 @@
 #define PAGE_SIZE_SHIFT 12
 #define PAGE_SIZE       (1 << PAGE_SIZE_SHIFT)
 
-#define PAGE_ALIGNED(addr) (!((uint32_t)(addr) & 0xFFF))
+#define IS_PAGE_ALIGNED(addr) (!((uint32_t)(addr) & 0xFFF))
+#define PAGE_ALIGN_DOWN(addr) ((uint32_t)(addr) & -PAGE_SIZE)
+#define PAGE_ALIGN_UP(addr)   (((uint32_t)(addr) + (PAGE_SIZE - 1)) & -PAGE_SIZE)
 
 #ifndef TREEOS_EXPORT_ASM
 
@@ -47,6 +49,10 @@ struct page_table_entry // aka a page
     uint32_t address        : 20; // physical address of page, right-shifted by 12
 } PACKED;
 
+// Global kernel page structures
+extern struct page_dir_entry *g_kernel_page_dir;
+extern struct page_table_entry *g_kernel_page_table;
+
 // Page allocation
 struct page_table_entry *page_alloc(struct page_table_entry *frame);
 void page_free(struct page_table_entry *frame);
@@ -62,6 +68,10 @@ void page_unmap(uint32_t virtualaddr);
 uint32_t paging_init_bitmap(uint32_t mem_size);
 void paging_init_region(uint32_t base, uint32_t size);
 void paging_deinit_region(uint32_t base, uint32_t size);
+
+// Page directory creation (for user-mode processes)
+struct page_dir_entry *page_dir_alloc(struct page_dir_entry *dir);
+void page_dir_free(struct page_dir_entry *dir);
 
 #endif
 
