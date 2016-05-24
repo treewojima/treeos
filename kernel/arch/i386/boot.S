@@ -183,7 +183,7 @@ init_bootstrap_paging:
         call map_page
 
         pushl %ecx
-        addl  $g_kernel_high_vma, %ecx
+        addl  $g_kernel_high_offset, %ecx
         call  map_page
         popl  %ecx
 
