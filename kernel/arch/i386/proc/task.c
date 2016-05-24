@@ -15,7 +15,7 @@ void tss_init(void)
     g_kernel_tss.esp0 = KERN_STACK_TOP;
 
     // Set the default kernel stack segment
-    g_kernel_tss.ss0 = 0x10;
+    g_kernel_tss.ss0 = KERN_DATA_SELECTOR;
 
     // Load the TSS using the offset in the GDT (0x28), plus some control bits
     write_tss(0x2B);
