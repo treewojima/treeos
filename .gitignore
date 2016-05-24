@@ -6,3 +6,5 @@ build
 ~*
 *.autosave
 *.iso
+*.creator.user.*
+init/init
