@@ -14,7 +14,6 @@ static void init_system_task(void);
 void test_tasks(void)
 {
     init_system_task();
-
     scheduler_bootstrap_thread(&g_kernel_system_task);
 }
 
