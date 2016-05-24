@@ -1,25 +1,42 @@
-# Source: http://wiki.osdev.org/User:Mduft/HigherHalf_Kernel_with_32-bit_Paging
-# TODO: comment the code!
+/* treeos
+ * Copyright (C) 2014-2016 Scott Bishop <treewojima@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-# This section needs to be at the very beginning of the binary for the kernel
-# to be recognized as a multiboot-compatible file
+// Source: http://wiki.osdev.org/User:Mduft/HigherHalf_Kernel_with_32-bit_Paging
+// TODO: comment the code!
+
+// This section needs to be at the very beginning of the binary for the kernel
+// to be recognized as a multiboot-compatible file
 .section .multiboot
 
-#include <kernel/multiboot.h>
+//include <kernel/multiboot.h>
 
-# Declare constants used for creating a multiboot header
-#define MULTIBOOT_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
+// Declare constants used for creating a multiboot header
+//define MULTIBOOT_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
 
-# The multiboot header itself
+// The multiboot header itself
 .align 0x100
     .long MULTIBOOT_HEADER_MAGIC
     .long MULTIBOOT_FLAGS
     .long -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_FLAGS)
 
-# Data section - includes the initial page directories/tables
+// Data section - includes the initial page directories/tables
 .section .data
 
-# Reserve space for the bootstrap kernel page directory and table
+// Reserve space for the bootstrap kernel page directory and table
 .align 0x1000
 .global g_kernel_page_dir
 g_kernel_page_dir:
@@ -27,15 +44,15 @@ g_kernel_page_dir:
 .global g_kernel_page_table
 g_kernel_page_table:
     .space 0x1000, 0x00
-#.global g_kernel_low_page_table
-#g_kernel_low_page_table:
-#    .space 0x1000, 0x00
+//.global g_kernel_low_page_table
+//g_kernel_low_page_table:
+//    .space 0x1000, 0x00
 
-# The kernel bootstrap stack
-#.section .bootstrap_stack, "aw", @nobits
+// The kernel bootstrap stack
+//.section .bootstrap_stack, "aw", @nobits
 .global g_kernel_stack_bottom
 g_kernel_stack_bottom:
-    #.skip 0x4000 # 16 KiB
+    //.skip 0x4000 // 16 KiB
     .space 0x4000, 0x00
 .global g_kernel_stack_top
 g_kernel_stack_top:
@@ -52,22 +69,22 @@ msg_function_name:
 .section .text
 .code32
 
-# For debug purposes
+// For debug purposes
 .set VIDEO_RAM   , 0xB8000
 .set VIDEO_DWORDS, 0x3E8
 
-# Kernel entry point; called after control is handed over from the bootloader
+// Kernel entry point; called after control is handed over from the bootloader
 .global _start
 .type _start, @function
 _start:
-    # Set the stack/base pointers to account for the offset into the higher half
+    // Set the stack/base pointers to account for the offset into the higher half
     movl $g_kernel_stack_top  , %esp
     subl $g_kernel_high_offset, %esp
 
-    # Initialize the bootstrap paging mechanism
+    // Initialize the bootstrap paging mechanism
     call init_bootstrap_paging
 
-    # Adjust stack/base pointers to the proper virtual address
+    // Adjust stack/base pointers to the proper virtual address
     addl $g_kernel_high_offset, %esp
     movl %esp              , %ebp
 
@@ -76,7 +93,7 @@ _start:
 .global higher_half_start
 .type higher_half_start, @function
 higher_half_start:
-    # Clear the screen
+    // Clear the screen
     movl  $VIDEO_RAM   , %edi
     movl  $VIDEO_DWORDS, %ecx
     pushl %eax
@@ -84,18 +101,18 @@ higher_half_start:
     rep stosl
     popl  %eax
 
-    # Initialize core kernel functionality and push the multiboot arguments
+    // Initialize core kernel functionality and push the multiboot arguments
     pushl %ebx
     pushl %eax
     call  kinit
 
-    # Call global constructors
+    // Call global constructors
     call _init
 
-    # Call the main kernel function
+    // Call the main kernel function
     call kmain
 
-    # kmain shouldn't have returned...
+    // kmain shouldn't have returned...
     pushl $msg_kmain_returned
     pushl $112
     pushl $msg_function_name
@@ -134,7 +151,7 @@ boot_print_msg:
     popl %edx
     ret
 
-# Initialize bootstrap paging
+// Initialize bootstrap paging
 .type init_bootstrap_paging, @function
 init_bootstrap_paging:
     pushl %eax
@@ -191,11 +208,11 @@ init_bootstrap_paging:
         cmpl %eax   , %ecx
         jle  map_kernel
 
-    # Map the last entry of the PDE to itself
+    // Map the last entry of the PDE to itself
     movl %ebx       , %eax
-    addl $4092      , %eax   # page dir index 1023 * 4 bytes in size
+    addl $4092      , %eax   // page dir index 1023 * 4 bytes in size
     movl %ebx       , %ecx
-    andl $0xFFFFF000, %ecx   # strip off the last 12 flag bits
+    andl $0xFFFFF000, %ecx   // strip off the last 12 flag bits
     orl  $0x7       , %ecx
     movl %ecx       , (%eax)
 
