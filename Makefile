@@ -105,7 +105,7 @@ install-grub:
 
 $(ISO_TARGET): kernel install-grub
 	@echo ">> Creating ISO"
-	@grub2-mkrescue -d /usr/lib/grub/i386-pc -o $(ISO_TARGET) $(SYSROOT)
+	@grub-mkrescue -d /usr/lib/grub/i386-pc -o $(ISO_TARGET) $(SYSROOT)
 
 iso: $(ISO_TARGET)
 
