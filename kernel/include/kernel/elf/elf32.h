@@ -24,6 +24,9 @@
 #   error this include is not meant to be used for assembly source files
 #endif
 
+#ifdef TREEOS_I386
+#   include <arch/i386/elf/elf32.h>
+#endif
 #include <kernel/elf/universal.h>
 #include <stdbool.h>
 #include <stdint.h>

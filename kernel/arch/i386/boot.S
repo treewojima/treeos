@@ -22,10 +22,10 @@
 // to be recognized as a multiboot-compatible file
 .section .multiboot
 
-//include <kernel/multiboot.h>
+#include <kernel/multiboot.h>
 
 // Declare constants used for creating a multiboot header
-//define MULTIBOOT_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
+#define MULTIBOOT_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
 
 // The multiboot header itself
 .align 0x100
@@ -38,11 +38,11 @@
 
 // Reserve space for the bootstrap kernel page directory and table
 .align 0x1000
-.global g_kernel_page_dir
-g_kernel_page_dir:
+.global g_real_kernel_page_dir
+g_real_kernel_page_dir:
     .space 0x1000, 0x00
-.global g_kernel_page_table
-g_kernel_page_table:
+.global g_real_kernel_page_table
+g_real_kernel_page_table:
     .space 0x1000, 0x00
 //.global g_kernel_low_page_table
 //g_kernel_low_page_table:
@@ -159,10 +159,10 @@ init_bootstrap_paging:
     pushl %edx
     pushl %ecx
 
-    movl  $g_kernel_page_dir   , %eax
+    movl  $g_real_kernel_page_dir   , %eax
     subl  $g_kernel_high_offset, %eax
 
-    movl $g_kernel_page_table , %ebx
+    movl $g_real_kernel_page_table , %ebx
     subl $g_kernel_high_offset, %ebx
     orl  $0x7                 , %ebx
     movl %ebx                 , (%eax)
@@ -178,7 +178,7 @@ init_bootstrap_paging:
     pushl %eax
     addl  %edx, %eax
 
-    movl $g_kernel_page_table , %ebx
+    movl $g_real_kernel_page_table , %ebx
     subl $g_kernel_high_offset, %ebx
     orl  $0x7                 , %ebx
     movl %ebx                 , (%eax)

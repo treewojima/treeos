@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//include <arch/i386/proc/thread.h>
+//#include <arch/i386/proc/thread.h>
 
 .section .text
 

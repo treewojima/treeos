@@ -51,8 +51,8 @@ bool elf32_validate(struct Elf32_Ehdr *hdr)
         return false;
     }
 
-    // x86?
-    if (hdr->e_machine != EM_386)
+    // Valid platform?
+    if (!elf32_validate_platform(hdr))
     {
         worry("unsupported ELF file target");
         return false;

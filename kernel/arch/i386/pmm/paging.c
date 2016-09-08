@@ -27,6 +27,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern struct page_dir_entry g_real_kernel_page_dir;
+struct page_dir_entry *g_kernel_page_dir = &g_real_kernel_page_dir;
+
+extern struct page_table_entry g_real_kernel_page_table;
+struct page_table_entry *g_kernel_page_table = &g_real_kernel_page_table;
+
 static uint32_t page_count;
 
 static struct bitmap page_bitmap;
@@ -35,15 +41,15 @@ static struct bitmap page_bitmap;
 static unsigned page_bitmap_bits[BITMAP_ARRAY_SIZE];
 
 uint32_t paging_init_bitmap(uint32_t mem_size)
-{    
+{
     page_count = mem_size >> PAGE_SIZE_SHIFT;
     if (mem_size % PAGE_SIZE) page_count++;
 
     // Initialize bitmap by hand, since we don't have dynamic memory allocation
-    //bitmap_alloc(&page_bitmap, page_count);
     page_bitmap.bits = page_bitmap_bits;
     page_bitmap.word_count = page_count / BITS_PER_WORD;
     if (page_count % BITS_PER_WORD) page_bitmap.word_count++;
+    KASSERT(page_bitmap.word_count < BITMAP_ARRAY_SIZE);
     page_bitmap.flags = 0;
 
     // Set all of memory as "in use" by default
