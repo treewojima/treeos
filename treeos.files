@@ -210,9 +210,8 @@ kernel/include/kernel/tasks/idle.h
 kernel/include/kernel/tasks/system.h
 kernel/include/arch/i386/debug.h
 kernel/include/kernel/elf/elf32.h
-kernel/kernel/elf/elf32.c
 kernel/include/kernel/elf/universal.h
 kernel/include/kernel/module.h
 kernel/kernel/module.c
-kernel/include/arch/i386/elf/elf32.h
 kernel/arch/i386/elf/elf32.c
+kernel/include/arch/i386/asm.h

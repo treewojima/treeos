@@ -32,6 +32,7 @@
 
 #ifndef TREEOS_EXPORT_ASM
 
+#include <arch/i386/asm.h>
 #include <arch/i386/cpu.h>
 #include <kernel/debug.h>
 
@@ -41,14 +42,14 @@
     do                                \
     {                                 \
         KASSERT(!int_enabled());      \
-        __asm__ __volatile__ ("sti"); \
+        asm_sti();                    \
     } while (0);
 
 #define int_disable()                 \
     do                                \
     {                                 \
         KASSERT(int_enabled());       \
-        __asm__ __volatile__ ("cli"); \
+        asm_cli();                    \
     } while (0);
 
 #endif

@@ -41,7 +41,6 @@ struct process g_kernel_system_task;
 
 static void init_idle_task(void);
 static void init_init_task(void);
-static uint32_t get_init_entry(void);
 static struct page_dir_entry *clone_page_dir(struct page_dir_entry *pde);
 
 void kernel_system_task(void)
@@ -64,6 +63,10 @@ void kernel_system_task(void)
         dbg_print_esp();
         //int_unlock_region(lock);
         process_yield();
+        while (g_kernel_system_task.flags & PROC_DEBUG_YIELD)
+        {
+            asm_hlt();
+        }
     }
 }
 
@@ -159,44 +162,6 @@ void init_init_task(void)
     int_unlock_region(lock);
 }
 
-uint32_t get_init_entry(void)
-{
-    struct Elf32_Ehdr *hdr = get_module_by_name("init");
-    KASSERT(hdr);
-
-    // First, loop through the program headers to validate and calculate
-    // the base address
-    Elf32_Word base = -1;
-    for (uint32_t i = 0; i < hdr->e_phnum; i++)
-    {
-        struct Elf32_Phdr *prog_hdr = (struct Elf32_Phdr *)
-                ((uint32_t)hdr + hdr->e_phoff + i * hdr->e_phentsize);
-
-        if (prog_hdr->p_type != PT_LOAD) continue;
-
-        // Base address is the smallest p_vaddr entry
-        if (prog_hdr->p_vaddr < base) base = prog_hdr->p_vaddr;
-    }
-
-    // Loop through them again to calculate the amount of memory required
-    Elf32_Word size = 0;
-    for (uint32_t i = 0; i < hdr->e_phnum; i++)
-    {
-        struct Elf32_Phdr *prog_hdr = (struct Elf32_Phdr *)
-                ((uint32_t)hdr + hdr->e_phoff + i * hdr->e_phentsize);
-
-        // Size is the largest p_vaddr entry plus p_memsz
-        Elf32_Word s = prog_hdr->p_paddr - base + prog_hdr->p_memsz;
-        if (s > size) size = s;
-    }
-
-    printf("init base: %x\n", base);
-    printf("init size: %x\n", size);
-    //panic("lol");
-
-    return 0;
-}
-
 struct page_dir_entry *clone_page_dir(struct page_dir_entry *pde)
 {
     if (!pde)
@@ -209,17 +174,17 @@ struct page_dir_entry *clone_page_dir(struct page_dir_entry *pde)
 #else
         pde = paging_structure_alloc();
 #endif
+
+        // Copy kernel pages into new directory
+        // NOTE: for now, just blindly copy everything above the higher half page
+        memcpy(pde + 768,
+               g_kernel_page_dir + 768,
+               255);
+        pde[1023].present = true;
+        pde[1023].rw = true;
+        pde[1023].address = (uint32_t)virt_to_phys(pde) >> 12;
     }
+
     KASSERT(IS_PAGE_ALIGNED(pde));
-
-    // Copy kernel pages into new directory
-    // NOTE: for now, just blindly copy everything above the higher half page
-    memcpy(pde + 768,
-           g_kernel_page_dir + 768,
-           255);
-    pde[1023].present = true;
-    pde[1023].rw = true;
-    pde[1023].address = (uint32_t)virt_to_phys(pde) >> 12;
-
     return pde;
 }

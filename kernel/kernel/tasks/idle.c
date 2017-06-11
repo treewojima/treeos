@@ -17,6 +17,7 @@
 
 #include <kernel/tasks/idle.h>
 
+#include <arch/i386/asm.h>
 #include <kernel/interrupt.h>
 #include <kernel/proc/process.h>
 #include <stdio.h>
@@ -27,10 +28,12 @@ void kernel_idle_task(void)
 {
     for (;;)
     {
+        printf("idle task: ");
+        dbg_print_esp();
         process_yield();
         while (g_kernel_idle_task.flags & PROC_DEBUG_YIELD)
         {
-            asm volatile("hlt": : : "memory");
+            asm_hlt();
         }
     }
 }

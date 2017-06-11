@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <arch/i386/asm.h>
 #include <kernel/interrupt.h>
 #include <kernel/reboot.h>
 #include <kernel/tty.h>
@@ -30,7 +31,7 @@ void reboot(void)
     write_idt((uint32_t)&fake_idt);
 
     int_enable();
-    asm volatile("int $3": : : "memory");
+    asm_int(3);
 
     for (;;);
     __builtin_unreachable();
@@ -42,7 +43,8 @@ void halt(void)
 
     liballoc_dump();
 
-    asm volatile("cli; hlt": : : "memory");
+    asm_cli();
+    asm_hlt();
 
     for (;;);
     __builtin_unreachable();
