@@ -24,10 +24,8 @@
 #   error this include is not meant to be used for assembly source files
 #endif
 
-#ifdef TREEOS_I386
-#   include <arch/i386/elf/elf32.h>
-#endif
 #include <kernel/elf/universal.h>
+#include <kernel/proc/process.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -73,5 +71,7 @@ struct Elf32_Phdr
 #define ELF32_HEADER_SIZE 52
 
 bool elf32_validate(struct Elf32_Ehdr *hdr);
+bool elf32_validate_platform(struct Elf32_Ehdr *hdr);
+bool elf32_load(struct Elf32_Ehdr *hdr, struct process *proc);
 
 #endif
