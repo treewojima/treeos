@@ -32,6 +32,6 @@
 
 struct process;
 
-void scheduler_bootstrap_thread(struct process *p);
+void NORETURN scheduler_bootstrap_thread(struct process *p);
 
 #endif

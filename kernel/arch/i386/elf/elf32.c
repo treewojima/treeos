@@ -111,8 +111,8 @@ bool elf32_load(struct Elf32_Ehdr *hdr, struct process *proc)
     //printf("init base: %x\n", base);
     //printf("init size: %x\n", size);
 
-    //
-
+    // TODO: finish this function
+    return true;
 }
 
 

@@ -195,8 +195,6 @@ kernel/kernel/kbd.c
 kernel/kernel/kernel.c
 kernel/kernel/multiboot.c
 kernel/kernel/panic.c
-kernel/kernel/kernel_test.c
-kernel/kernel/kernel_test.h
 kernel/kernel/kernel_test_asm.S
 kernel/kernel/timer.c
 kernel/include/arch/i386/pit.h
@@ -204,7 +202,6 @@ kernel/include/kernel/proc/scheduler.h
 kernel/kernel/proc/scheduler.c
 kernel/arch/i386/proc/scheduler_asm.S
 kernel/include/arch/i386/proc/scheduler.h
-kernel/kernel/tasks/idle.c
 kernel/kernel/tasks/system.c
 kernel/include/kernel/tasks/idle.h
 kernel/include/kernel/tasks/system.h

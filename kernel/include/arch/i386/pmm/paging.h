@@ -86,10 +86,6 @@ uint32_t paging_init_bitmap(uint32_t mem_size);
 void paging_init_region(uint32_t base, uint32_t size);
 void paging_deinit_region(uint32_t base, uint32_t size);
 
-// Page directory creation (for user-mode processes)
-struct page_dir_entry *page_dir_alloc(struct page_dir_entry *dir);
-void page_dir_free(struct page_dir_entry *dir);
-
 #endif
 
 #endif

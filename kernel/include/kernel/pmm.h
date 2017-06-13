@@ -25,6 +25,7 @@
 #endif
 
 #ifdef TREEOS_I386
+#   include <arch/i386/pmm/allocator.h>
 #   include <arch/i386/pmm/paging.h>
 #   include <arch/i386/pmm/pmm.h>
 #   include <arch/i386/pmm/tlb.h>

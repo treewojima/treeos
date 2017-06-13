@@ -211,23 +211,3 @@ void page_unmap(uint32_t virtualaddr)
     memset(&pte[pgtbl_index], 0, sizeof(*pte));
     flush_tlb(virtualaddr);
 }
-
-struct page_dir_entry *page_dir_alloc(struct page_dir_entry *dir)
-{
-    // Create a new paging directory if necessary
-    if (!dir)
-    {
-        struct page_table_entry *pte = { 0 };
-        PANIC_IF(!page_alloc(pte), "out of memory");
-        dir = (struct page_dir_entry *)(pte->address << 12);
-    }
-
-    KASSERT(IS_PAGE_ALIGNED(dir));
-
-    return dir;
-}
-
-void page_dir_free(struct page_dir_entry *dir)
-{
-    kfree(dir);
-}

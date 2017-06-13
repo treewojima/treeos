@@ -59,16 +59,7 @@ scheduler_advance_stage2:
     // Set the stack pointer to the new process's stack
     movl g_current_process, %eax
     movl (%eax)           , %edx
-
-    // All this:
-    //movl (%edx)           , %ebp
-    //movl THREAD_CONTEXT_OFFSET(%ebp), %esp
-    // esp is the original value, so adjust it for the rest of the
-    // thread context
-    //subl $THREAD_CONTEXT_OFFSET, %esp
-
-    // Has the same effect as this:
-    movl (%edx), %esp
+    movl (%edx)           , %esp
 
     movl $0, g_switch_processes
 

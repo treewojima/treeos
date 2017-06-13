@@ -20,7 +20,6 @@
 #include <arch/i386/pit.h>
 #include <kernel/interrupt.h>
 #include <stdio.h>
-#include "kernel_test.h"
 
 static uint32_t system_ticks;
 static void timer_callback(const struct thread_context const *context UNUSED);
